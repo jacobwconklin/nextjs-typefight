@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Coda&family=Comic+Neue&family=Federant&family=Gabriela&family=Grenze+Gotisch&family=Kalam&family=Merriweather&family=Nova+Square&family=Orbitron&family=Reggae+One&family=Roboto&family=Tomorrow&display=swap');
+
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  font-family: var(--body-font), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --title-font: 'Orbitron', sans-serif;
+  --body-font: 'Roboto', sans-serif;
+  --user-font: 'Arial', sans-serif;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}

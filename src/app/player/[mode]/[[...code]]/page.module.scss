@@ -1,0 +1,234 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #a8b5e8 0%, #c8d0f0 100%);
+  padding: 2rem;
+  font-family: var(--body-font);
+}
+
+.previewSection {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.playerPreview,
+.fontPreview {
+  background: white;
+  border: 3px solid #333;
+  border-radius: 12px;
+  padding: 1.5rem;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.playerPreview {
+  background: white;
+  border: 3px solid #333;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 320px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1rem;
+}
+
+
+.iconPreview {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #333;
+  padding: 10px;
+  flex: 0 0 80px;
+  margin-right: 12px;
+}
+
+.aliasPreview {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  flex: 1 1 auto;
+  max-width: calc(100% - 100px);
+  text-align: left;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.fontPreviewTitle {
+  font-family: var(--title-font);
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.fontPreviewText {
+  font-size: 1.1rem;
+  color: #333;
+  text-align: center;
+}
+
+.customizationSection {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.customizationRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.customizationItem {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inputWrapper {
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.sectionTitle {
+  font-family: var(--title-font);
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+}
+
+.inputField {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #333;
+  border-radius: 8px;
+  font-family: var(--body-font);
+  font-size: 1rem;
+  background: white;
+  color: #333;
+}
+
+.colorPickerContainer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.colorPicker {
+  width: 60px;
+  height: 60px;
+  border: 2px solid #333;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.colorHex {
+  font-family: var(--body-font);
+  font-size: 1rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.joinCodeSection {
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.joinCodeSection .inputField {
+  max-width: 320px;
+  margin: 1rem auto 0;
+}
+
+.iconSection {
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.iconGrid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1rem;
+  margin-top: 2rem;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.iconButton {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.iconButtonSelected {
+  border: 4px solid #333;
+  background: #f0f0f0;
+  transform: scale(1.1);
+}
+
+.startButton {
+  display: block;
+  margin: 2rem auto;
+  padding: 1rem 2.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-family: var(--body-font);
+  background: linear-gradient(135deg, #ff8a8a 0%, #e04a4a 100%);
+  border: 2px solid #333;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  color: white;
+
+  &:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.99);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .customizationRow {
+    grid-template-columns: 1fr;
+  }
+
+  .iconGrid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
