@@ -6,6 +6,7 @@ import QRCode from 'qrcode'
 import styles from './page.module.scss'
 import { usePlayerType } from '../../../context/PlayerTypeContext'
 import wsClient from '../../../websocket/wsClient'
+import { FRONTEND_URL } from '../../../config' 
 
 interface PlayerRow {
   id: string
@@ -42,7 +43,7 @@ export default function PartyPage() {
   // build QR whenever joinCode changes
   useEffect(() => {
     if (!joinCode) return
-    const fullUrl = `http://localhost:3000/player/join/${joinCode}`
+    const fullUrl = `${FRONTEND_URL}/player/join/${joinCode}`
     QRCode.toDataURL(fullUrl).then(setQrDataUrl).catch(console.error)
   }, [joinCode])
 
@@ -157,7 +158,7 @@ export default function PartyPage() {
 
   const handleCopyUrl = async () => {
     try {
-      const url = `http://localhost:3000/player/join/${joinCode}`
+      const url = `${FRONTEND_URL}/player/join/${joinCode}`
       await navigator.clipboard.writeText(url)
       setUrlBurst(true)
       setTimeout(() => setUrlBurst(false), 800)
@@ -194,7 +195,7 @@ export default function PartyPage() {
         </div>
 
         <div className={styles.urlBox}>
-          <div className={styles.urlText}>http://localhost:3000/player/join/{joinCode}</div>
+          <div className={styles.urlText}>{`${FRONTEND_URL}/player/join/${joinCode}`}</div>
           <button className={`${styles.copyButton} ${urlBurst ? styles.active : ''}`} onClick={handleCopyUrl}>
             Copy
             <div className={`${styles.sparks} ${urlBurst ? styles.active : ''}`}>

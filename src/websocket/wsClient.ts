@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client'
+import { WEBSOCKET_URL } from '../config'
 
 type Handler = (payload: any) => void
 
@@ -16,7 +17,7 @@ class WSClient {
   socket: Socket | null = null
   connected = false
 
-  constructor(url = 'http://localhost:5000') {
+  constructor(url = WEBSOCKET_URL) {
     this.url = url
     this.connect()
   }
@@ -54,7 +55,7 @@ class WSClient {
   // request is used in a few places for convenience. Support common backend http actions.
   async request(type: string, payload: any): Promise<any> {
     if (type === 'generateJoinCode' || type === 'createParty') {
-      const res = await fetch('http://localhost:5000/api/session/create', {
+      const res = await fetch(`${this.url}/api/session/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gameName: payload?.gameName || null }),
@@ -67,7 +68,7 @@ class WSClient {
     if (type === 'getParty') {
       const code = payload?.code
       if (!code) return null
-      const res = await fetch(`http://localhost:5000/api/session/${encodeURIComponent(code)}`)
+      const res = await fetch(`${this.url}/api/session/${encodeURIComponent(code)}`)
       if (!res.ok) return null
       const data = await res.json()
       return data.session

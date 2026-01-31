@@ -9,6 +9,10 @@
 - **Backend**: WebSocket-based backend server (stateful) — holds authoritative game state and communicates with clients over WebSocket.
 - **Hosting**: AWS
 
+**Environment variables:**
+- Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_WEBSOCKET_URL` to the backend WebSocket server URL (must start with `http://` or `https://`). This variable is exposed to the browser.
+
+
 ### TypeScript Standards
 - **Avoid `any` type**: Use proper typing as much as possible
 - Define interfaces and types for all data structures
