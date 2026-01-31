@@ -6,7 +6,7 @@
 - **Framework**: Next.js with App Router
 - **Language**: TypeScript
 - **Styling**: SCSS (Sass)
-- **Database**: DynamoDB (via AWS)
+- **Backend**: WebSocket-based backend server (stateful) — holds authoritative game state and communicates with clients over WebSocket.
 - **Hosting**: AWS
 
 ### TypeScript Standards
@@ -17,18 +17,18 @@
 ## Architecture & Data Flow
 
 ### Server-Side Components
-- Server-side components directly interact with the database
-- Database is the single source of truth for:
+- A separate backend WebSocket server holds authoritative game state and game logic
+- The backend server is the single source of truth for:
   - Game logic
   - Player status
   - Team status
 
-### Database Abstraction
-- **DB-Agnostic Design**: All server-side logic must be database-agnostic
-- **Separate DB Interface Layer**: 
-  - Server-side scripts specifically interface with DynamoDB
-  - Allows future swapping to MongoDB or other databases
-  - Keep business logic separate from database implementation
+### Backend & Protocol Abstraction
+- **Protocol-Agnostic Design**: Design server and client to communicate via a clear message/event interface
+- **Separate Transport Layer**: 
+  - Server-side scripts handle WebSocket message routing and state management
+  - Allows future swapping or scaling of backend transport without changing business logic
+  - Keep business logic separate from transport/serialization implementation
 
 ### Client vs Server Logic
 - Game-specific logic distribution (client vs server vs database) will be defined per game
@@ -73,15 +73,15 @@
 
 ### General Principles
 - TypeScript strict typing (avoid `any`)
-- Server-side components for database interactions
-- DB-agnostic business logic
+- Server-side components for backend state and WebSocket interactions
+- Backend-agnostic business logic
 - Reusable SCSS styles
 - Consistent naming conventions
 
 ### Code Organization
-- Separate database interface layer from business logic
+- Separate transport/interface layer (WebSocket message handling) from business logic
 - Keep game-specific logic modular
-- Server components as primary data access layer
+- Server components as the authoritative state and logic layer
 
 ## Testing Requirements
 
@@ -92,7 +92,7 @@
   - Utility functions
   - Server-side functions
   - Business logic
-  - Database interface layer
+  - Backend interface layer (WebSocket message handling)
 
 ### Frontend/UI Testing
 - **Not Required**: UI and frontend testing is not a priority at this time
@@ -100,30 +100,28 @@
 
 ## Performance Considerations
 
-### Database Contact Strategy
-- **Primary Concern**: Frequency of database contact during games
+### Real-time Communication Strategy
+- **Primary Concern**: Efficient real-time state synchronization between clients and backend
 - **Balance Required**: 
-  - Reduce database strain (minimize requests)
-  - Keep player lag down (maintain responsiveness)
+  - Reduce network roundtrips and server load
+  - Keep player lag low and gameplay responsive
 
 ### Approaches to Consider
-- **Polling**: Regular interval checks for game state updates
-  - Pros: Simple implementation
-  - Cons: Can create high DB load with many players
-- **Key-Time Requests**: Contact database only at critical moments
-  - Pros: Reduces DB strain significantly
-  - Cons: May introduce perceived lag if not timed well
-- **Hybrid Approach**: Combine polling at lower frequency with event-driven updates at key moments
+- **WebSocket Push Events**: Backend pushes state changes to connected clients
+  - Pros: Low latency, efficient for many players
+  - Cons: Requires a stateful backend and connection management
+- **Client-Side Prediction & Local State**: Use local updates for instant feedback and reconcile with authoritative server state
+- **Fallback Polling**: Use polling only as a fallback for degraded network or unsupported environments
 
 ### Optimization Guidelines
-- Minimize database reads during active gameplay
-- Batch updates when possible
-- Use client-side state for non-critical updates
-- Only sync critical game state changes to database
-- Consider caching strategies for frequently accessed data
+- Favor event-driven (push) updates over frequent polling
+- Batch or debounce outgoing events when appropriate
+- Use client-side caching and prediction for non-critical updates
+- Only synchronize authoritative state changes from the backend
+- Consider scaling strategies (sharding, socket clustering) for many concurrent players
 
 ## Deployment
 
 - **Hosting**: AWS
-- **Database**: DynamoDB on AWS
-- Ensure all AWS-specific configurations are properly set up
+- **Backend**: Deploy WebSocket backend server (hosted on AWS, container platform, or other provider)
+- Ensure all hosting and network configurations (load balancers, WebSocket proxies, TLS) are properly set up

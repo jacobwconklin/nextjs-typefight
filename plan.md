@@ -93,8 +93,8 @@ After selecting an option, users are taken to a customization screen where they 
 - **Home Page**: Implemented with Matrix-style falling letters background and navigation buttons for Host, Join, Solo modes.
 - **Customization Screen (/player/[mode])**: Full player setup with alias, color picker, font selection, icon grid. Mode-based background colors, alias maxlength enforcement, word-wrap, and responsive design. Supports optional join code prefill from URL (/player/join/<code>).
 - **PlayerTypeContext**: App-wide React context for managing player type (host/join/solo) and join code state.
-- **Party Page (/party/[code])**: Lobby screen with join code display, copy button, QR code linking to full join URL, real-time players table via DB polling, and host-only start button.
-- **Database Layer**: In-memory DynamoDB simulation with TypeScript schemas for Player and PartySession. Includes functions for code generation, party creation, player management, and game start polling.
+- **Party Page (/party/[code])**: Lobby screen with join code display, copy button, QR code linking to full join URL, real-time players table via a WebSocket connection to a backend server, and host-only start button.
+- **Backend Layer**: In-memory backend simulation with TypeScript schemas for Player and PartySession. Includes functions for code generation, party creation, player management, and WebSocket-style event handling for game start and state updates.
 - **Routing & Flow**:
   - Host: Generates unique 8-char code, creates party, adds player, navigates to /party/<code>.
   - Join: Validates entered code, adds player if valid, navigates to /party/<code>; shows error for invalid codes.
@@ -104,6 +104,6 @@ After selecting an option, users are taken to a customization screen where they 
 ### Next Steps
 - Implement /games page with game selection grid.
 - Develop individual game pages (QuickKeys, etc.).
-- Replace in-memory DB with real DynamoDB integration.
-- Add game logic and real-time updates. 
+- Replace in-memory backend simulation with a real WebSocket backend server implementation.
+- Add game logic and real-time updates.
 - Testing and refinements.

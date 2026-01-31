@@ -1,0 +1,23 @@
+.panel{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100vh;
+  transform:none;
+  z-index:5;
+  border:none;
+  box-shadow:none;
+  overflow:hidden;
+  background:transparent;
+  pointer-events:none; /* allow clicks to pass through */
+}
+
+.canvas{
+  width:100%;
+  height:100%;
+  display:block;
+}
+/* make text crisp */
+.panel canvas{
+  image-rendering: optimizeQuality;
+}

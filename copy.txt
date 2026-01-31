@@ -1,0 +1,3 @@
+const availableFonts = allFonts.map((fontName, index) => {
+        return {key: index, label: <div style={{fontFamily: fontName}}>{fontName}</div>};
+    });

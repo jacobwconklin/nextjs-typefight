@@ -1,11 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import styles from './page.module.scss'
 import { PlayerType, usePlayerType } from '../../../../context/PlayerTypeContext'
-import * as db from '../../../../database/dynamodb'
-import { PlayerSchema, IconName, FontName } from '../../../../database/types'
+import wsClient from '../../../../websocket/wsClient'
+
+// Minimal local types (was previously imported from database/types)
+type IconName = string
+type FontName = string
+interface PlayerSchema {
+  id: string
+  alias: string
+  icon: IconName
+  font: FontName
+  color: string
+  joinedAt: number
+}
 
 function makeId() {
   return Math.random().toString(36).slice(2, 10)
@@ -73,15 +84,30 @@ export default function PlayerCustomizationPage() {
   const [customization, setCustomization] = useState<PlayerCustomization>({
     alias: '',
     color: '',
-    font: 'Federant',
-    icon: 'black-chess-knight',
+    font: 'Calibri',
+    icon: AVAILABLE_ICONS[Math.floor(Math.random() * AVAILABLE_ICONS.length)],
     joinCode: '',
   })
 
-  // set a random initial color on first mount if not already set
+  // local state + ref to control font dropdown visibility
+  const [fontDropdownOpen, setFontDropdownOpen] = useState(false)
+  const fontDropdownRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (fontDropdownRef.current && !fontDropdownRef.current.contains(e.target as Node)) {
+        setFontDropdownOpen(false)
+      }
+    }
+    if (fontDropdownOpen) window.addEventListener('mousedown', onClick)
+    return () => window.removeEventListener('mousedown', onClick)
+  }, [fontDropdownOpen])
+
+  // set a random initial color and icon on first mount if not already set
   useEffect(() => {
     const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
-    setCustomization((c) => ({ ...c, color: c.color || randomColor() }))
+    const randomIcon = () => AVAILABLE_ICONS[Math.floor(Math.random() * AVAILABLE_ICONS.length)]
+    setCustomization((c) => ({ ...c, color: c.color || randomColor(), icon: c.icon || randomIcon() }))
   }, [])
 
   useEffect(() => {
@@ -128,13 +154,12 @@ export default function PlayerCustomizationPage() {
     // TODO: Save customization and navigate to next page
     console.log('Starting with:', customization)
     if (mode === 'host') {
-      // Generate 8-char join code
-      const generatedCode = await db.generateJoinCode()
+      // Generate 8-char join code via backend API
+      const generatedCode = await wsClient.request('generateJoinCode', {})
       setJoinCode(generatedCode)
       setCustomization((c) => ({ ...c, joinCode: generatedCode }))
-      // Create party
-      await db.createParty(generatedCode)
-      // Add host player
+
+      // Persist player customization locally so the party page can emit join-session
       const player: PlayerSchema = {
         id: makeId(),
         alias: customization.alias,
@@ -143,19 +168,19 @@ export default function PlayerCustomizationPage() {
         color: customization.color,
         joinedAt: Date.now(),
       }
-      await db.addPlayerToParty(generatedCode, player)
-      // Navigate to party
+      localStorage.setItem('tf_player', JSON.stringify(player))
+
+      // Navigate to party (socket join will happen from party page)
       router.push(`/party/${generatedCode}`)
     } else if (mode === 'join') {
       const enteredCode = customization.joinCode || ''
-      // Validate code
-      const party = await db.getParty(enteredCode)
-      if (!party) {
-        alert('Invalid join code')
+      if (!enteredCode) {
+        alert('Please enter a join code')
         return
       }
+
       setJoinCode(enteredCode)
-      // Add player
+
       const player: PlayerSchema = {
         id: makeId(),
         alias: customization.alias,
@@ -164,10 +189,21 @@ export default function PlayerCustomizationPage() {
         color: customization.color,
         joinedAt: Date.now(),
       }
-      await db.addPlayerToParty(enteredCode, player)
-      // Navigate to party
+      localStorage.setItem('tf_player', JSON.stringify(player))
+
+      // Navigate to party; actual join occurs on the party page via socket
       router.push(`/party/${enteredCode}`)
     } else if (mode === 'solo') {
+      // Persist solo player locally and navigate to games page (offline mode)
+      const player: PlayerSchema = {
+        id: makeId(),
+        alias: customization.alias,
+        icon: customization.icon as IconName,
+        font: customization.font as FontName,
+        color: customization.color,
+        joinedAt: Date.now(),
+      }
+      localStorage.setItem('tf_player', JSON.stringify(player))
       // Navigate to games page
       router.push('/games')
     }
@@ -196,12 +232,38 @@ export default function PlayerCustomizationPage() {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`
   }
 
-  const mutedBg = hexToRGBA(buttonColor, 0.12)
+  const mutedBg = hexToRGBA(buttonColor, 0.06)
 
   const aliasPreviewText = customization.alias || 'My Nickname'
 
   return (
-    <div className={styles.container} style={{ background: mutedBg }}>
+    <div className={styles.container} style={{ backgroundColor: mutedBg, position: 'relative' }}>
+      {/* Home icon top-left */}
+      <button
+        aria-label="Home"
+        title="Home"
+        onClick={() => router.push('/')}
+        style={{
+          position: 'absolute',
+          top: 12,
+          left: 12,
+          background: 'transparent',
+          border: 'none',
+          padding: 6,
+          borderRadius: 6,
+          cursor: 'pointer',
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+          <path d="M3 11.5L12 4l9 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
       <div className={styles.previewSection}>
         <div className={styles.playerPreview}>
           <div
@@ -253,19 +315,30 @@ export default function PlayerCustomizationPage() {
           <div className={styles.customizationItem}>
             <h2 className={styles.sectionTitle}>Select Your Font</h2>
             <div className={styles.inputWrapper}>
-              <div className={styles.fontDropdown}>
-                <div className={styles.fontDropdownSelected} onClick={() => document.getElementById('font-dropdown-list')?.classList.toggle('active')}>
+              <div className={styles.fontDropdown} ref={fontDropdownRef}>
+                <div
+                  className={styles.fontDropdownSelected}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setFontDropdownOpen((o) => !o)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setFontDropdownOpen((o) => !o)
+                    }
+                  }}
+                >
                   <span style={{ fontFamily: customization.font }}>{customization.font}</span>
-                  <span className={styles.dropdownArrow}>▼</span>
+                  <span className={styles.dropdownArrow}>{fontDropdownOpen ? '▲' : '▼'}</span>
                 </div>
-                <div id="font-dropdown-list" className={styles.fontDropdownList}>
+                <div id="font-dropdown-list" className={`${styles.fontDropdownList} ${fontDropdownOpen ? styles.active : ''}`}>
                   {AVAILABLE_FONTS.map((font) => (
                     <div
                       key={font}
                       className={styles.fontDropdownItem}
                       onClick={() => {
                         setCustomization({ ...customization, font })
-                        document.getElementById('font-dropdown-list')?.classList.remove('active')
+                        setFontDropdownOpen(false)
                       }}
                     >
                       <span style={{ fontFamily: font }}>{font}</span>

@@ -1,8 +1,10 @@
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #a8b5e8 0%, #c8d0f0 100%);
+  /* dark base with high darkness (≈ 90%) */
+  background: linear-gradient(135deg, rgba(10,10,12,0.96) 0%, rgba(6,6,8,0.96) 100%);
   padding: 2rem;
   font-family: var(--body-font);
+  color: #ffffff; /* white text across the page */
 }
 
 .previewSection {
@@ -15,8 +17,8 @@
 
 .playerPreview,
 .fontPreview {
-  background: white;
-  border: 3px solid #333;
+  background: #151515; /* dark gray so white text pops */
+  border: 2px solid #cfcfcf; /* silvery borders */
   border-radius: 12px;
   padding: 1.5rem;
   min-width: 250px;
@@ -27,8 +29,8 @@
 }
 
 .playerPreview {
-  background: white;
-  border: 3px solid #333;
+  background: #1a1a1a;
+  border: 2px solid #cfcfcf;
   border-radius: 12px;
   padding: 1.5rem;
   width: 320px;
@@ -47,7 +49,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #333;
+  border: 2px solid #cfcfcf; /* silvery */
   padding: 10px;
   flex: 0 0 80px;
   margin-right: 12px;
@@ -56,7 +58,7 @@
 .aliasPreview {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #333;
+  color: #ffffff;
   flex: 1 1 auto;
   max-width: calc(100% - 100px);
   text-align: left;
@@ -68,13 +70,13 @@
   font-family: var(--title-font);
   font-size: 1.2rem;
   font-weight: bold;
-  color: #333;
+  color: #ffffff;
   margin-bottom: 0.5rem;
 }
 
 .fontPreviewText {
   font-size: 1.1rem;
-  color: #333;
+  color: #ffffff;
   text-align: center;
 }
 
@@ -97,28 +99,108 @@
 }
 
 .inputWrapper {
+  width: 100%;
   max-width: 320px;
   margin: 0 auto;
+}
+
+/* Font dropdown styles */
+.fontDropdown {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.fontDropdownSelected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  border: 2px solid #cfcfcf;
+  border-radius: 8px;
+  background: #151515; /* match dark input */
+  cursor: pointer;
+  font-family: var(--body-font);
+  font-size: 1rem;
+  color: #ffffff;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0; /* allow proper flex sizing inside constrained container */
+}
+
+.fontDropdownSelected > span:first-child {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0; /* ensure long font names don't stretch the container */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdownArrow {
+  margin-left: 8px;
+  font-size: 0.9rem;
+  color: #ddd;
+}
+
+.fontDropdownList {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  min-width: 100%;
+  background: #111;
+  border: 2px solid #cfcfcf;
+  border-radius: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  display: none;
+  z-index: 20;
+  box-sizing: border-box;
+}
+
+.fontDropdownList.active {
+  display: block;
+}
+
+.fontDropdownItem {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  color: #fff;
+}
+
+.fontDropdownItem:last-child {
+  border-bottom: none;
+}
+
+.fontDropdownItem:hover {
+  background: rgba(255,255,255,0.03);
 }
 
 .sectionTitle {
   font-family: var(--title-font);
   font-size: 1.5rem;
-  font-weight: bold;
-  color: #333;
+  font-weight: 400;
+  color: #ffffff;
   text-align: center;
 }
 
 .inputField {
   width: 100%;
   padding: 0.75rem;
-  border: 2px solid #333;
+  border: 2px solid #cfcfcf;
   border-radius: 8px;
   font-family: var(--body-font);
   font-size: 1rem;
-  background: white;
-  color: #333;
+  background: #141414; /* dark gray input */
+  color: #ffffff;
 }
+
+.inputField::placeholder{ color: #aaa; }
 
 .colorPickerContainer {
   display: flex;
@@ -130,15 +212,16 @@
 .colorPicker {
   width: 60px;
   height: 60px;
-  border: 2px solid #333;
+  border: 2px solid #cfcfcf;
   border-radius: 8px;
   cursor: pointer;
+  background: transparent;
 }
 
 .colorHex {
   font-family: var(--body-font);
   font-size: 1rem;
-  color: #333;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -171,27 +254,29 @@
   width: 70px;
   height: 70px;
   border-radius: 50%;
-  border: 2px solid #333;
-  background: white;
+  border: 2px solid #cfcfcf;
+  background: #141414;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 10px;
   transition: all 0.3s ease;
+  color: #fff;
 
   &:hover {
     transform: scale(1.1);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   }
 }
 
 .iconButtonSelected {
-  border: 4px solid #333;
-  background: #f0f0f0;
+  border: 3px solid #cfcfcf;
+  background: #1f1f1f;
   transform: scale(1.1);
 }
 
+/* keep start button visuals as-is per request, but ensure text stays white */
 .startButton {
   display: block;
   margin: 2rem auto;
@@ -199,12 +284,11 @@
   font-size: 1.25rem;
   font-weight: 700;
   font-family: var(--body-font);
-  background: linear-gradient(135deg, #ff8a8a 0%, #e04a4a 100%);
-  border: 2px solid #333;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.18s ease;
   color: white;
+  border: 2px solid #333; /* keep as before */
 
   &:hover {
     transform: translateY(-4px) scale(1.02);
