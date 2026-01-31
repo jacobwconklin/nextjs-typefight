@@ -19,6 +19,7 @@ export default function LetterWall() {
     let mouse = { x: -9999, y: -9999 }
 
     function resize() {
+      if (!container || !canvas) return
       const rect = container.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
       canvas.width = Math.floor(rect.width * dpr)
@@ -31,6 +32,7 @@ export default function LetterWall() {
     // Generate grid positions with a random letter per cell
     let positions: { x: number; y: number; char: string }[] = []
     function generatePositions() {
+      if (!container) return
       const rect = container.getBoundingClientRect()
       const spacing = Math.max(18, Math.floor(rect.width / 36))
       positions = []
@@ -42,6 +44,7 @@ export default function LetterWall() {
     }
 
     function onMove(e: MouseEvent) {
+      if (!canvas) return
       const rect = canvas.getBoundingClientRect()
       mouse.x = e.clientX - rect.left
       mouse.y = e.clientY - rect.top
@@ -54,6 +57,7 @@ export default function LetterWall() {
 
     let lastTime = performance.now()
     function draw(now: number) {
+      if (!container || !canvas) return
       const rect = container.getBoundingClientRect()
       const w = rect.width
       const h = rect.height
