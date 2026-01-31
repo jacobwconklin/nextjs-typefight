@@ -144,7 +144,6 @@ export default function PlayerCustomizationPage() {
   }
 
   const handleStart = async () => {
-    // TODO: Save customization and navigate to next page
     console.log('Starting with:', customization)
     if (mode === 'host') {
       // Generate 8-char join code via backend API
