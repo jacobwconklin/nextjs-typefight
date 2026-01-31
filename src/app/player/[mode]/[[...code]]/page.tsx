@@ -83,7 +83,7 @@ export default function PlayerCustomizationPage() {
 
   const [customization, setCustomization] = useState<PlayerCustomization>({
     alias: '',
-    color: '',
+    color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
     font: 'Calibri',
     icon: AVAILABLE_ICONS[Math.floor(Math.random() * AVAILABLE_ICONS.length)],
     joinCode: '',
@@ -102,13 +102,6 @@ export default function PlayerCustomizationPage() {
     if (fontDropdownOpen) window.addEventListener('mousedown', onClick)
     return () => window.removeEventListener('mousedown', onClick)
   }, [fontDropdownOpen])
-
-  // set a random initial color and icon on first mount if not already set
-  useEffect(() => {
-    const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
-    const randomIcon = () => AVAILABLE_ICONS[Math.floor(Math.random() * AVAILABLE_ICONS.length)]
-    setCustomization((c) => ({ ...c, color: c.color || randomColor(), icon: c.icon || randomIcon() }))
-  }, [])
 
   useEffect(() => {
     // Redirect invalid or missing mode back to homepage
