@@ -28,7 +28,7 @@ class WSClient {
 
     this.socket.on('connect', () => {
       this.connected = true
-      // console.log('socket connected', this.socket?.id)
+      console.log('socket connected', this.socket?.id)
     })
 
     this.socket.on('disconnect', () => {
@@ -54,6 +54,7 @@ class WSClient {
 
   // request is used in a few places for convenience. Support common backend http actions.
   async request(type: string, payload: any): Promise<any> {
+    console.log("URL IS: ", this.url);
     if (type === 'generateJoinCode' || type === 'createParty') {
       const res = await fetch(`${this.url}/api/session/create`, {
         method: 'POST',
