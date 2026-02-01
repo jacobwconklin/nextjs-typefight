@@ -23,12 +23,18 @@ interface GameOverViewProps {
     playerPositions: Record<string, PlayerPosition>
   }
   totalWordCount: number
+  playerType: 'solo' | 'host' | 'join'
+  onReplay: () => void
+  onExit: () => void
 }
 
 export default function GameOverView({
   players,
   gameState,
-  totalWordCount
+  totalWordCount,
+  playerType,
+  onReplay,
+  onExit
 }: GameOverViewProps) {
   // Sort players by completion time (fastest first)
   const rankedPlayers = players
@@ -104,6 +110,17 @@ export default function GameOverView({
           </tbody>
         </table>
       </div>
+
+      {(playerType === 'host' || playerType === 'solo') && (
+        <div className={styles.gameOverButtons}>
+          <button className={styles.replayButton} onClick={onReplay}>
+            Replay
+          </button>
+          <button className={styles.exitButton} onClick={onExit}>
+            Exit
+          </button>
+        </div>
+      )}
     </div>
   )
 }

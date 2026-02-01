@@ -92,6 +92,11 @@ export default function PlayerCustomizationPage() {
   // local state + ref to control font dropdown visibility
   const [fontDropdownOpen, setFontDropdownOpen] = useState(false)
   const fontDropdownRef = useRef<HTMLDivElement | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -227,6 +232,11 @@ export default function PlayerCustomizationPage() {
   const mutedBg = hexToRGBA(buttonColor, 0.06)
 
   const aliasPreviewText = customization.alias || 'My Nickname'
+
+  // Prevent hydration errors by not rendering until mounted on client
+  if (!isMounted) {
+    return null
+  }
 
   return (
     <div className={styles.container} style={{ backgroundColor: mutedBg, position: 'relative' }}>

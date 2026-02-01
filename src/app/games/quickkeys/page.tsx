@@ -113,9 +113,13 @@ export default function QuickKeysPage() {
           textName: payload.textName
         }))
         
-        // Start the timer when text is selected
+        // Reset all typing state when new text is selected
+        setCurrentCharIndex(0)
+        setCurrentWordIndex(0)
+        setErrors(0)
         setStartTime(Date.now())
-        console.log('Text selected:', payload.textName)
+        setHasError(false)
+        console.log('Text selected, typing state reset:', payload.textName)
       } else if (payload.type === 'word-completed') {
         console.log('Word completed update for player:', payload.playerId, 'index:', payload.index)
         setGameState(prev => ({
@@ -150,6 +154,13 @@ export default function QuickKeysPage() {
       if (!mounted) return
       console.log('game-started received:', payload)
       
+      // Check if we're exiting to game selection
+      if (payload.session && payload.session.gameName === 'games') {
+        console.log('Exiting to game selection')
+        router.push('/games')
+        return
+      }
+      
       // Initialize game state from session
       if (payload.session && payload.session.gameState) {
         setGameState({
@@ -158,6 +169,15 @@ export default function QuickKeysPage() {
           playerPositions: payload.session.gameState.playerPositions || {}
         })
         console.log('Game state initialized:', payload.session.gameState)
+        
+        // Reset typing state when game restarts
+        setCurrentCharIndex(0)
+        setCurrentWordIndex(0)
+        setErrors(0)
+        setStartTime(null)
+        setHasError(false)
+        setSelectedTextId(null)
+        console.log('Typing state reset on game-started')
         
         // Store players data
         if (payload.session.players) {
@@ -345,6 +365,42 @@ export default function QuickKeysPage() {
     }
   }
 
+  const handleReplay = () => {
+    console.log('Replay clicked, playerType:', playerType)
+    
+    if (playerType === 'solo') {
+      // Solo player - reset local state
+      setGameState({
+        finished: false,
+        textName: null,
+        playerPositions: {}
+      })
+      setCurrentCharIndex(0)
+      setCurrentWordIndex(0)
+      setErrors(0)
+      setStartTime(null)
+      setSelectedTextId(null)
+      console.log('Solo game reset to text selection')
+    } else if (playerType === 'host') {
+      // Host - restart the QuickKeys game
+      console.log('Host restarting QuickKeys game')
+      wsClient.send('start-game', { code: joinCode, gameName: 'quickkeys' })
+    }
+  }
+
+  const handleExit = () => {
+    console.log('Exit clicked, playerType:', playerType)
+    
+    if (playerType === 'solo') {
+      // Solo player - navigate back to games
+      router.push('/games')
+    } else if (playerType === 'host') {
+      // Host - go back to game selection
+      console.log('Host exiting to game selection')
+      wsClient.send('start-game', { code: joinCode, gameName: 'games' })
+    }
+  }
+
   // Get selected text
   const selectedText = texts.find(t => t.id === gameState.textName)
   const words = selectedText ? selectedText.body.split(/\s+/) : []
@@ -384,6 +440,9 @@ export default function QuickKeysPage() {
         players={players}
         gameState={gameState}
         totalWordCount={totalWordCount}
+        playerType={playerType}
+        onReplay={handleReplay}
+        onExit={handleExit}
       />
     )
   }

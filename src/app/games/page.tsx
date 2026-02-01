@@ -41,7 +41,12 @@ export default function GamesPage() {
       if (!mounted) return
       // Navigate to the selected game
       if (payload.session && payload.session.gameName) {
-        router.push(`/games/${payload.session.gameName}`)
+        // If gameName is 'games', stay on the games page (don't navigate)
+        // Otherwise navigate to the specific game
+        if (payload.session.gameName !== 'games') {
+          router.push(`/games/${payload.session.gameName}`)
+        }
+        // If gameName is 'games', we're already on the right page
       }
     }
 
