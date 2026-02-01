@@ -19,6 +19,7 @@ export default function GamesPage() {
   const router = useRouter()
   const { playerType, joinCode } = usePlayerType()
   const [players, setPlayers] = useState<Array<{ id: string; alias: string; icon: string; color: string }>>([])
+  const [votes, setVotes] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
     let mounted = true
@@ -50,8 +51,30 @@ export default function GamesPage() {
       }
     }
 
+    const onGameUpdate = (payload: any) => {
+      if (!mounted) return
+      if (payload.type === 'vote-update') {
+        console.log('Vote update received:', payload.votes)
+        setVotes(payload.votes || {})
+      }
+    }
+
     wsClient.on('partyState', onPartyState)
     wsClient.on('game-started', onGameStarted)
+    wsClient.on('game-update', onGameUpdate)
+
+    // Fetch initial game status to get current votes
+    if (joinCode) {
+      wsClient.socketRequest('game-status', {}).then((response) => {
+        if (!mounted || !response || !response.session) return
+        if (response.session.gameState && response.session.gameState.votes) {
+          console.log('Initial votes loaded:', response.session.gameState.votes)
+          setVotes(response.session.gameState.votes)
+        }
+      }).catch((err) => {
+        console.error('Failed to fetch game status for votes:', err)
+      })
+    }
 
     // fetch initial list if joinCode available
     if (joinCode) {
@@ -65,6 +88,7 @@ export default function GamesPage() {
       mounted = false
       wsClient.off('partyState', onPartyState)
       wsClient.off('game-started', onGameStarted)
+      wsClient.off('game-update', onGameUpdate)
     }
   }, [playerType, joinCode, router])
 
@@ -76,8 +100,14 @@ export default function GamesPage() {
       // Host - start the game via websocket
       console.log(`Host starting game ${gameId} in session ${joinCode}`)
       wsClient.send('start-game', { code: joinCode, gameName: gameId })
+    } else if (playerType === 'join') {
+      // Join player - vote for the game
+      console.log(`Join player voting for game ${gameId}`)
+      wsClient.send('update-game', {
+        type: 'vote',
+        gameName: gameId
+      })
     }
-    // Join players do nothing - they wait for host
   }
 
   return (
@@ -98,24 +128,44 @@ export default function GamesPage() {
 
         <h1 className={styles.title}>Games</h1>
         <div className={styles.grid}>
-          {games.map((g) => (
-            <div 
-              key={g.id} 
-              onClick={() => handleGameClick(g.id)}
-              className={`${styles.card} ${playerType === 'join' ? styles.disabled : ''}`}
-              style={{ ["--accent" as any]: g.color }}
-            >
-              <div className={styles.cardInner}>
-                <div className={styles.cardMedia} />
-                <div className={styles.cardBody}>
-                  <h3>{g.title}</h3>
-                  <p className={styles.hint}>
-                    {playerType === 'join' ? 'Waiting for host...' : 'Hover to preview • Click to play'}
-                  </p>
+          {games.map((g) => {
+            const gameVotes = votes[g.id] || []
+            const voters = gameVotes.map(playerId => players.find(p => p.id === playerId)).filter(Boolean)
+            
+            return (
+              <div key={g.id} className={styles.cardWrapper}>
+                <div 
+                  onClick={() => handleGameClick(g.id)}
+                  className={styles.card}
+                  style={{ ["--accent" as any]: g.color }}
+                >
+                  <div className={styles.cardInner}>
+                    <div className={styles.cardMedia} />
+                    <div className={styles.cardBody}>
+                      <h3>{g.title}</h3>
+                      <p className={styles.hint}>
+                        {playerType === 'join' ? 'Click to vote' : playerType === 'host' ? 'Click to start' : 'Click to play'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
+                {voters.length > 0 && (
+                  <div className={styles.voters}>
+                    {voters.map((voter) => (
+                      <div 
+                        key={voter.id} 
+                        className={styles.voterIcon} 
+                        title={voter.alias}
+                        style={{ backgroundColor: voter.color }}
+                      >
+                        <img src={`/icons/${voter.icon}.svg`} alt={voter.alias} width={24} height={24} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </main>
     </div>

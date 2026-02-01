@@ -1,5 +1,6 @@
 import React from 'react'
 import styles from './page.module.scss'
+import ExitButton from '@/components/ExitButton'
 
 interface TypingText {
   id: string
@@ -63,6 +64,11 @@ export default function TextSelection({
           </div>
         ))}
       </div>
+
+      <ExitButton 
+        gameName="quickkeys"
+        className={styles.exitButtonMargin}
+      />
     </div>
   )
 }
