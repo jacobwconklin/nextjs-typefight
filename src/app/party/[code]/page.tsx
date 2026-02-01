@@ -75,7 +75,12 @@ export default function PartyPage() {
       if (!mounted) return
       setPlayers(payload.players || [])
       setGameStarted(Boolean(payload.gameStarted))
-      if (payload.gameStarted) router.push('/games')
+    }
+
+    const onGameStarted = (payload: any) => {
+      if (!mounted) return
+      // Navigate to games page when game is started
+      router.push('/games')
     }
 
     const onJoinError = (payload: any) => {
@@ -88,6 +93,7 @@ export default function PartyPage() {
     wsClient.on('player-joined', onPlayerJoined)
     wsClient.on('player-left', onPlayerLeft)
     wsClient.on('partyState', onPartyState)
+    wsClient.on('game-started', onGameStarted)
     wsClient.on('join-error', onJoinError)
 
     // attempt to fetch current session info (optional) - useful for viewing empty parties
@@ -138,8 +144,8 @@ export default function PartyPage() {
       wsClient.off('player-joined', onPlayerJoined)
       wsClient.off('player-left', onPlayerLeft)
       wsClient.off('partyState', onPartyState)
+      wsClient.off('game-started', onGameStarted)
       wsClient.off('join-error', onJoinError)
-      wsClient.send('leave-session', { code: joinCode })
     }
   }, [joinCode, router])
 
@@ -169,7 +175,7 @@ export default function PartyPage() {
 
   const handleStart = async () => {
     if (!joinCode) return
-    wsClient.send('start-game', { code: joinCode })
+    wsClient.send('start-game', { code: joinCode, gameName: 'games' })
   }
 
   return (

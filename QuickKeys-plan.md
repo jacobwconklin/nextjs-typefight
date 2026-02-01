@@ -20,25 +20,31 @@
 
 #### Visual Layout
 - **Text Display Area** (top of page):
-  - Shows text with current line underlined
+  - Large block spanning width of screen
   - Only 5 lines visible at a time
-  - Current line positioned at the very top
-  - Auto-scrolls up after each line is completed
+  - Auto-scrolls up when top line is completed (typed lines become invisible)
+  - Already typed letters are grayed out
+  - Current letter to type is bold
+  - Text below 5 visible lines is cut off
 
 #### Typing Mechanics
 - **Correct Letter**: 
-  - Changes from white to player's selected color
   - Letter becomes grayed out after being typed
+  - Progress continues to next character
 - **Incorrect Letter**:
-  - Text shakes
-  - Error message appears below the text
-  - Player must type the correct letter to progress (no backspace required)
+  - Text block border glows red and shakes slightly
+  - Player must type the correct letter to progress (no backspace)
+  - Error count increments
 
 #### Progress Tracking
 - **Progress Bar** (below text):
-  - Shows all players' progress through the text
-  - Each player's icon displayed on the bar
-  - Real-time position updates
+  - Horizontal line showing all players' progress
+  - Each player's icon positioned at: `(playerIndex / totalWordCount) * lineWidth`
+  - All players start at far left (index 0)
+  - Icon z-index ordering:
+    1. Local player's icon always on top
+    2. Other players ordered by progress (furthest ahead on top)
+  - Real-time position updates on each word completion
 
 #### Game End Condition
 - All players must finish typing the entire text
@@ -57,6 +63,34 @@
 - **Select New Game**: Return to games selection page
 
 ## Technical Considerations
+
+### Session State Structure
+
+The QuickKeys game state object contains:
+
+```typescript
+{
+  finished: boolean,           // Determines if game is over
+  textName: string | null,     // Which text was selected (null = show text select)
+  playerPositions: {           // Each player's progress
+    [playerId]: {
+      index: number,           // Number of words completed
+      time: number | null,     // Duration to finish (null until complete)
+      errors: number           // Number of mistakes made
+    }
+  }
+}
+```
+
+**View Routing Logic:**
+- No textName → Text selection view
+- textName + not finished → Game view (typing screen)
+- textName + finished → Game over view (results)
+
+**Update Events:**
+- `text-selected`: When host/solo selects a text
+- `word-completed`: On each word typed (updates index and errors)
+- `text-completed`: When player finishes entire text (sets time and errors)
 
 ### Text Management
 - Text library/database needed

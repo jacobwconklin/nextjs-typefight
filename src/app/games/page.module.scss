@@ -68,6 +68,22 @@
   text-decoration:none;
   color:inherit;
   perspective:800px;
+  cursor:pointer;
+
+  &.disabled {
+    cursor:not-allowed;
+    opacity:0.5;
+
+    .cardInner {
+      animation:none;
+    }
+
+    &:hover .cardInner {
+      transform:translateY(0);
+      border-color:rgba(255,255,255,0.04);
+      box-shadow:0 14px 28px rgba(0,0,0,0.6), 0 8px 12px rgba(0,0,0,0.4);
+    }
+  }
 }
 
 .cardInner{

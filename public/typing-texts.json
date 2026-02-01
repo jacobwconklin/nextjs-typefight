@@ -1,0 +1,47 @@
+[
+  {
+    "id": "super-short",
+    "name": "Type Fast",
+    "body": "One Two Three Four."
+  },
+  {
+    "id": "gettysburg",
+    "name": "Gettysburg Address",
+    "body": "Four score and seven years ago our fathers brought forth on this continent, a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived and so dedicated, can long endure. We are met on a great battle-field of that war. We have come to dedicate a portion of that field, as a final resting place for those who here gave their lives that that nation might live. It is altogether fitting and proper that we should do this."
+  },
+  {
+    "id": "pangram",
+    "name": "Quick Brown Fox",
+    "body": "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump! Sphinx of black quartz, judge my vow. The five boxing wizards jump quickly."
+  },
+  {
+    "id": "shakespeare",
+    "name": "To Be or Not To Be",
+    "body": "To be, or not to be, that is the question: Whether 'tis nobler in the mind to suffer the slings and arrows of outrageous fortune, or to take arms against a sea of troubles and by opposing end them. To die—to sleep, no more; and by a sleep to say we end the heart-ache and the thousand natural shocks that flesh is heir to: 'tis a consummation devoutly to be wish'd."
+  },
+  {
+    "id": "declaration",
+    "name": "Declaration of Independence",
+    "body": "We hold these truths to be self-evident, that all men are created equal, that they are endowed by their Creator with certain unalienable Rights, that among these are Life, Liberty and the pursuit of Happiness. That to secure these rights, Governments are instituted among Men, deriving their just powers from the consent of the governed."
+  },
+  {
+    "id": "typing-short",
+    "name": "Typing Practice (Short)",
+    "body": "The art of typing quickly and accurately requires practice and dedication. Focus on proper finger placement and maintain a steady rhythm. Speed will naturally increase as your muscle memory develops."
+  },
+  {
+    "id": "coding",
+    "name": "Code Snippet",
+    "body": "function calculateSum(numbers) { return numbers.reduce((total, num) => total + num, 0); } const result = calculateSum([1, 2, 3, 4, 5]); console.log(result);"
+  },
+  {
+    "id": "lorem",
+    "name": "Lorem Ipsum",
+    "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur."
+  },
+  {
+    "id": "freedom",
+    "name": "MLK - I Have a Dream",
+    "body": "I have a dream that one day this nation will rise up and live out the true meaning of its creed: We hold these truths to be self-evident, that all men are created equal. I have a dream that my four little children will one day live in a nation where they will not be judged by the color of their skin but by the content of their character."
+  }
+]

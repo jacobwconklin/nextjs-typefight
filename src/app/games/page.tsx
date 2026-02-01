@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useMemo, useEffect, useState } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import LetterWall from "../../components/LetterWall"
 import styles from "./page.module.scss"
 import { usePlayerType } from "../../context/PlayerTypeContext"
@@ -16,6 +16,7 @@ const GAMES = [
 
 export default function GamesPage() {
   const games = useMemo(() => GAMES, [])
+  const router = useRouter()
   const { playerType, joinCode } = usePlayerType()
   const [players, setPlayers] = useState<Array<{ id: string; alias: string; icon: string; color: string }>>([])
 
@@ -36,7 +37,16 @@ export default function GamesPage() {
       setPlayers((payload.players || []).map((pp: any) => ({ id: pp.id, alias: pp.alias, icon: pp.icon, color: pp.color })))
     }
 
+    const onGameStarted = (payload: any) => {
+      if (!mounted) return
+      // Navigate to the selected game
+      if (payload.session && payload.session.gameName) {
+        router.push(`/games/${payload.session.gameName}`)
+      }
+    }
+
     wsClient.on('partyState', onPartyState)
+    wsClient.on('game-started', onGameStarted)
 
     // fetch initial list if joinCode available
     if (joinCode) {
@@ -49,8 +59,21 @@ export default function GamesPage() {
     return () => {
       mounted = false
       wsClient.off('partyState', onPartyState)
+      wsClient.off('game-started', onGameStarted)
     }
-  }, [playerType, joinCode])
+  }, [playerType, joinCode, router])
+
+  const handleGameClick = (gameId: string) => {
+    if (playerType === 'solo') {
+      // Solo player - just navigate
+      router.push(`/games/${gameId}`)
+    } else if (playerType === 'host') {
+      // Host - start the game via websocket
+      console.log(`Host starting game ${gameId} in session ${joinCode}`)
+      wsClient.send('start-game', { code: joinCode, gameName: gameId })
+    }
+    // Join players do nothing - they wait for host
+  }
 
   return (
     <div className={styles.page}>
@@ -71,15 +94,22 @@ export default function GamesPage() {
         <h1 className={styles.title}>Games</h1>
         <div className={styles.grid}>
           {games.map((g) => (
-            <Link key={g.id} href={`/games/${g.id}`} className={styles.card} style={{ ["--accent" as any]: g.color }}>
+            <div 
+              key={g.id} 
+              onClick={() => handleGameClick(g.id)}
+              className={`${styles.card} ${playerType === 'join' ? styles.disabled : ''}`}
+              style={{ ["--accent" as any]: g.color }}
+            >
               <div className={styles.cardInner}>
                 <div className={styles.cardMedia} />
                 <div className={styles.cardBody}>
                   <h3>{g.title}</h3>
-                  <p className={styles.hint}>Hover to preview • Click to play</p>
+                  <p className={styles.hint}>
+                    {playerType === 'join' ? 'Waiting for host...' : 'Hover to preview • Click to play'}
+                  </p>
                 </div>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       </main>

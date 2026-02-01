@@ -52,6 +52,43 @@ class WSClient {
     this.socket?.emit(type, payload)
   }
 
+  // socketRequest wraps socket emit/on into a Promise for request-response pattern
+  socketRequest(type: string, payload: any = {}): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'))
+        return
+      }
+
+      const responseEvent = `${type}`
+      const errorEvent = `${type}-error`
+      
+      // Set up one-time listeners for response
+      const onResponse = (data: any) => {
+        this.socket?.off(errorEvent, onError)
+        resolve(data)
+      }
+      
+      const onError = (data: any) => {
+        this.socket?.off(responseEvent, onResponse)
+        reject(new Error(data.error || 'Socket request failed'))
+      }
+      
+      this.socket.once(responseEvent, onResponse)
+      this.socket.once(errorEvent, onError)
+      
+      // Emit the request
+      this.socket.emit(type, payload)
+      
+      // Add timeout after 5 seconds
+      setTimeout(() => {
+        this.socket?.off(responseEvent, onResponse)
+        this.socket?.off(errorEvent, onError)
+        reject(new Error(`Socket request timeout: ${type}`))
+      }, 5000)
+    })
+  }
+
   // request is used in a few places for convenience. Support common backend http actions.
   async request(type: string, payload: any): Promise<any> {
     console.log("URL IS: ", this.url);
