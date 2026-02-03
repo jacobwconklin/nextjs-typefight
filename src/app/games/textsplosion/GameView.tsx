@@ -103,11 +103,11 @@ export default function GameView({
     return (
       <div className={styles.pumpTextContainer}>
         <h3 className={styles.pumpTitle}>Pump the Balloon!</h3>
-        <div className={styles.pumpProgress}>
+        {/* <div className={styles.pumpProgress}>
           <div className={styles.progressText}>
             {numWordsPumped} / {numWordsUntilPop} words until POP!
           </div>
-        </div>
+        </div> */}
         <div className={styles.linesCompleted}>
           Your words: {wordsTyped[currentPlayerId] || 0}
         </div>
