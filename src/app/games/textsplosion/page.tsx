@@ -27,17 +27,69 @@ interface GameState {
   winnerId: string | null
 }
 
+// Color pair type for ColorWords challenge
+interface ColorPair {
+  word: string
+  color: string
+}
+
 // Client-side only state (not synced with server)
 interface LocalGameState {
   challengeType: 'backwards' | 'colorWords' | 'oneLetterAtATime' | 'alphabetical' | 'noMistakes' | 'noCursor'
   challengeText: string
   currentPumpWord: string
+  colorWords: ColorPair[]
 }
 
 // Generate a random word for pumping
 const getRandomWord = () => {
   const words = generate({ exactly: 1, maxLength: 8 }) as string[]
   return words[0]
+}
+
+// Generate random challenge type
+const getRandomChallengeType = (): 'backwards' | 'colorWords' | 'oneLetterAtATime' | 'alphabetical' | 'noMistakes' | 'noCursor' => {
+  const challengeTypes: ('backwards' | 'colorWords' | 'oneLetterAtATime' | 'alphabetical' | 'noMistakes' | 'noCursor')[] = 
+    ['backwards', 'colorWords', 'oneLetterAtATime', 'alphabetical', 'noMistakes', 'noCursor']
+  return challengeTypes[Math.floor(Math.random() * challengeTypes.length)]
+}
+
+// Generate random color words for ColorWords challenge
+const generateColorWords = (): ColorPair[] => {
+  const allColorPairs: ColorPair[] = [
+    { word: 'RED', color: '#00FF00' },     // Green
+    { word: 'BLUE', color: '#FF0000' },    // Red
+    { word: 'GREEN', color: '#0000FF' },   // Blue
+    { word: 'YELLOW', color: '#FF00FF' },  // Magenta
+    { word: 'PURPLE', color: '#FFFF00' },  // Yellow
+    { word: 'ORANGE', color: '#00FFFF' },  // Cyan
+    { word: 'RED', color: '#0000FF' },     // Blue
+    { word: 'BLUE', color: '#FFFF00' },    // Yellow
+    { word: 'GREEN', color: '#FF00FF' },   // Magenta
+    { word: 'YELLOW', color: '#00FFFF' },  // Cyan
+    { word: 'PURPLE', color: '#FF0000' },  // Red
+    { word: 'ORANGE', color: '#00FF00' },  // Green
+    { word: 'RED', color: '#FF00FF' },     // Magenta
+    { word: 'BLUE', color: '#00FFFF' },    // Cyan
+    { word: 'GREEN', color: '#FFFF00' },   // Yellow
+    { word: 'YELLOW', color: '#0000FF' },  // Blue
+    { word: 'PURPLE', color: '#00FFFF' },  // Cyan
+    { word: 'ORANGE', color: '#FF0000' },  // Red
+    { word: 'PINK', color: '#00FF00' },    // Green
+    { word: 'WHITE', color: '#FF0000' },   // Red
+    { word: 'MAGENTA', color: '#00FF00' }, // Green
+    { word: 'PERIWINKLE', color: '#FF0000' }, // Red
+    { word: 'TURQUOISE', color: '#FFFF00' }, // Yellow
+    { word: 'INDIGO', color: '#00FFFF' },  // Cyan
+    { word: 'CRIMSON', color: '#0000FF' }, // Blue
+    { word: 'CORAL', color: '#FF00FF' },   // Magenta
+    { word: 'TEAL', color: '#FF0000' },    // Red
+    { word: 'LAVENDER', color: '#00FF00' }, // Green
+    { word: 'MAROON', color: '#00FFFF' },  // Cyan
+    { word: 'CHARTREUSE', color: '#0000FF' }, // Blue
+  ]
+  const shuffled = [...allColorPairs].sort(() => Math.random() - 0.5)
+  return shuffled.slice(0, 10)
 }
 
 export default function TextSplosionPage() {
@@ -57,9 +109,10 @@ export default function TextSplosionPage() {
   
   // Client-side only state
   const [localState, setLocalState] = useState<LocalGameState>({
-    challengeType: 'backwards',
+    challengeType: getRandomChallengeType(),
     challengeText: CHALLENGE_TEXTS[Math.floor(Math.random() * CHALLENGE_TEXTS.length)],
-    currentPumpWord: getRandomWord()
+    currentPumpWord: getRandomWord(),
+    colorWords: generateColorWords()
   })
   
   // Typing state
@@ -155,7 +208,8 @@ export default function TextSplosionPage() {
         setLocalState({
           challengeType: 'backwards',
           challengeText: CHALLENGE_TEXTS[Math.floor(Math.random() * CHALLENGE_TEXTS.length)],
-          currentPumpWord: getRandomWord()
+          currentPumpWord: getRandomWord(),
+          colorWords: generateColorWords()
         })
         
         // Reset typing state
@@ -195,7 +249,8 @@ export default function TextSplosionPage() {
     setLocalState({
       challengeType: 'backwards',
       challengeText: CHALLENGE_TEXTS[Math.floor(Math.random() * CHALLENGE_TEXTS.length)],
-      currentPumpWord: getRandomWord()
+      currentPumpWord: getRandomWord(),
+      colorWords: generateColorWords()
     })
     
     // Note: Server will set playerOrder, expiredPlayers, numWordsUntilPop on start-game
@@ -231,7 +286,8 @@ export default function TextSplosionPage() {
       setLocalState({
         challengeType: challengeTypes[Math.floor(Math.random() * challengeTypes.length)],
         challengeText: CHALLENGE_TEXTS[Math.floor(Math.random() * CHALLENGE_TEXTS.length)],
-        currentPumpWord: getRandomWord()
+        currentPumpWord: getRandomWord(),
+        colorWords: generateColorWords()
       })
       
       // Reset typing state
@@ -265,7 +321,8 @@ export default function TextSplosionPage() {
       setLocalState({
         challengeType: challengeTypes[Math.floor(Math.random() * challengeTypes.length)],
         challengeText: CHALLENGE_TEXTS[Math.floor(Math.random() * CHALLENGE_TEXTS.length)],
-        currentPumpWord: getRandomWord()
+        currentPumpWord: getRandomWord(),
+        colorWords: generateColorWords()
       })
       
       // Reset typing state
@@ -299,11 +356,7 @@ export default function TextSplosionPage() {
         if (localState.challengeType === 'backwards') {
           targetText = localState.challengeText.split('').reverse().join('')
         } else if (localState.challengeType === 'colorWords') {
-          const colorPairs = [
-            { word: 'RED' }, { word: 'BLUE' }, { word: 'GREEN' },
-            { word: 'YELLOW' }, { word: 'PURPLE' }, { word: 'ORANGE' }
-          ]
-          targetText = colorPairs.map(p => p.word).join(' ')
+          targetText = localState.colorWords.map(p => p.word).join(' ')
         } else if (localState.challengeType === 'alphabetical') {
           // Sort words alphabetically and join without spaces
           const words = localState.challengeText.split(' ').filter(word => word.length > 0)
@@ -432,6 +485,7 @@ export default function TextSplosionPage() {
       currentPlayerId={currentPlayerId}
       numWordsUntilPop={gameState.numWordsUntilPop}
       numWordsPumped={gameState.numWordsPumped}
+      colorWords={localState.colorWords}
     />
   )
 }

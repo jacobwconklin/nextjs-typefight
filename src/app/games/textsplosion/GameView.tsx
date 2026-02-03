@@ -16,6 +16,11 @@ interface Player {
   font?: string
 }
 
+interface ColorPair {
+  word: string
+  color: string
+}
+
 interface GameViewProps {
   players: Player[]
   playerQueue: string[] // Ordered list of player IDs (excluding hot seat)
@@ -31,6 +36,7 @@ interface GameViewProps {
   currentPlayerId: string
   numWordsUntilPop: number
   numWordsPumped: number
+  colorWords: ColorPair[]
 }
 
 export default function GameView({
@@ -46,7 +52,8 @@ export default function GameView({
   wordsTyped,
   currentPlayerId,
   numWordsUntilPop,
-  numWordsPumped
+  numWordsPumped,
+  colorWords
 }: GameViewProps) {
   const hotSeatPlayer = players.find(p => p.id === hotSeatPlayerId)
 
@@ -78,7 +85,7 @@ export default function GameView({
       case 'backwards':
         return <BackwardsTyping text={challengeText} currentCharIndex={currentCharIndex} hasError={hasError} />
       case 'colorWords':
-        return <ColorWords currentCharIndex={currentCharIndex} hasError={hasError} />
+        return <ColorWords currentCharIndex={currentCharIndex} hasError={hasError} colorWords={colorWords} />
       case 'oneLetterAtATime':
         return <OneLetterAtATime text={challengeText} currentCharIndex={currentCharIndex} hasError={hasError} />
       case 'alphabetical':
