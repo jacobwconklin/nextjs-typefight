@@ -150,14 +150,17 @@ export default function GamesPage() {
                 {voters.length > 0 && (
                   <div className={styles.voters}>
                     {voters.map((voter) => (
-                      <div 
-                        key={voter.id} 
-                        className={styles.voterIcon} 
-                        title={voter.alias}
-                        style={{ backgroundColor: voter.color }}
-                      >
-                        <img src={`/icons/${voter.icon}.svg`} alt={voter.alias} width={24} height={24} />
-                      </div>
+                        voter ?
+                        <div 
+                          key={voter.id} 
+                          className={styles.voterIcon} 
+                          title={voter.alias}
+                          style={{ backgroundColor: voter.color }}
+                        >
+                          <img src={`/icons/${voter.icon}.svg`} alt={voter.alias} width={24} height={24} />
+                        </div>
+                        :
+                        <></>
                     ))}
                   </div>
                 )}

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react'
 
-export type PlayerType = 'host' | 'join' | 'solo' | null
+export type PlayerType = 'host' | 'join' | 'solo'
 
 export interface PlayerData {
   id: string
@@ -24,7 +24,7 @@ interface PlayerTypeContextValue {
 const PlayerTypeContext = createContext<PlayerTypeContextValue | undefined>(undefined)
 
 export function PlayerTypeProvider({ children }: { children: ReactNode }) {
-  const [playerType, setPlayerType] = useState<PlayerType>(null)
+  const [playerType, setPlayerType] = useState<PlayerType>("solo")
   const [joinCode, setJoinCode] = useState<string | null>(null)
   const [playerData, setPlayerData] = useState<PlayerData | null>(null)
   return (
