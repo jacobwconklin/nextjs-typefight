@@ -279,6 +279,11 @@ export default function TextSplosionPage() {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (gameState.finished) return
       
+      // Prevent spacebar from triggering button clicks (e.g., ExitButton)
+      if (e.key === ' ') {
+        e.preventDefault()
+      }
+      
       const hotSeatPlayerId = gameState.playerOrder[0]
       const isHotSeat = currentPlayerId === hotSeatPlayerId
       
