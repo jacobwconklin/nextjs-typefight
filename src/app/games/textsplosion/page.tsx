@@ -279,10 +279,8 @@ export default function TextSplosionPage() {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (gameState.finished) return
       
-      // Prevent spacebar from triggering button clicks (e.g., ExitButton)
-      if (e.key === ' ') {
-        e.preventDefault()
-      }
+      // Prevent spacebar and other keys from triggering button clicks (e.g., ExitButton)
+      e.preventDefault()
       
       const hotSeatPlayerId = gameState.playerOrder[0]
       const isHotSeat = currentPlayerId === hotSeatPlayerId
@@ -369,8 +367,8 @@ export default function TextSplosionPage() {
       }
     }
 
-    window.addEventListener('keypress', handleKeyPress)
-    return () => window.removeEventListener('keypress', handleKeyPress)
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
   }, [currentCharIndex, currentLineIndex, gameState, localState, currentPlayerId])
 
   // Handle replay - restart the game

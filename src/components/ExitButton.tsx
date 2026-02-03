@@ -87,6 +87,7 @@ export default function ExitButton({ gameName, className }: ExitButtonProps) {
     <button 
       className={`${styles.exitButton} ${className || ''}`}
       onClick={handleExit}
+      tabIndex={-1}
     >
       Exit
     </button>
