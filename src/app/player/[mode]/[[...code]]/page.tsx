@@ -77,7 +77,7 @@ const AVAILABLE_ICONS = [
 export default function PlayerCustomizationPage() {
   const params = useParams()
   const router = useRouter()
-  const { playerType, setPlayerType, joinCode, setJoinCode } = usePlayerType()
+  const { playerType, setPlayerType, joinCode, setJoinCode, setPlayerData } = usePlayerType()
   const mode = params.mode as string
   const code = params.code as string[] | undefined
 
@@ -156,7 +156,7 @@ export default function PlayerCustomizationPage() {
       setJoinCode(generatedCode)
       setCustomization((c) => ({ ...c, joinCode: generatedCode }))
 
-      // Persist player customization locally so the party page can emit join-session
+      // Save player data to context
       const player: PlayerSchema = {
         id: makeId(),
         alias: customization.alias,
@@ -165,7 +165,7 @@ export default function PlayerCustomizationPage() {
         color: customization.color,
         joinedAt: Date.now(),
       }
-      localStorage.setItem('tf_player', JSON.stringify(player))
+      setPlayerData(player)
 
       // Navigate to party (socket join will happen from party page)
       router.push(`/party/${generatedCode}`)
@@ -186,12 +186,12 @@ export default function PlayerCustomizationPage() {
         color: customization.color,
         joinedAt: Date.now(),
       }
-      localStorage.setItem('tf_player', JSON.stringify(player))
+      setPlayerData(player)
 
       // Navigate to party; actual join occurs on the party page via socket
       router.push(`/party/${enteredCode}`)
     } else if (mode === 'solo') {
-      // Persist solo player locally and navigate to games page (offline mode)
+      // Save solo player to context and navigate to games page
       const player: PlayerSchema = {
         id: makeId(),
         alias: customization.alias,
@@ -200,7 +200,7 @@ export default function PlayerCustomizationPage() {
         color: customization.color,
         joinedAt: Date.now(),
       }
-      localStorage.setItem('tf_player', JSON.stringify(player))
+      setPlayerData(player)
       // Navigate to games page
       router.push('/games')
     }

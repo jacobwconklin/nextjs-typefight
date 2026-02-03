@@ -36,7 +36,7 @@ interface Player {
 
 export default function QuickKeysPage() {
   const router = useRouter()
-  const { playerType, joinCode } = usePlayerType()
+  const { playerType, joinCode, playerData } = usePlayerType()
   const [texts, setTexts] = useState<TypingText[]>([])
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -209,27 +209,25 @@ export default function QuickKeysPage() {
     }
   }, [playerType, joinCode])
 
-  // Get current player ID from localStorage
+  // Get current player ID from context
   useEffect(() => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('tf_player') : null
-    if (stored) {
-      const player = JSON.parse(stored)
-      setCurrentPlayerId(player.id || '')
-      console.log('Current player loaded from localStorage:', player)
+    if (playerData) {
+      setCurrentPlayerId(playerData.id || '')
+      console.log('Current player loaded from context:', playerData)
       
       // For solo players, populate the players array
       if (playerType === 'solo') {
         setPlayers([{
-          id: player.id || 'solo',
-          alias: player.alias || 'Player',
-          icon: player.icon || 'wizard',
-          color: player.color || '#667eea',
-          font: player.font || 'inherit'
+          id: playerData.id || 'solo',
+          alias: playerData.alias || 'Player',
+          icon: playerData.icon || 'wizard',
+          color: playerData.color || '#667eea',
+          font: playerData.font || 'inherit'
         }])
         console.log('Solo player setup complete')
       }
     }
-  }, [playerType])
+  }, [playerType, playerData])
 
   // Determine which view to show
   const showTextSelect = !gameState.textName

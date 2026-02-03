@@ -17,18 +17,16 @@ const GAMES = [
 export default function GamesPage() {
   const games = useMemo(() => GAMES, [])
   const router = useRouter()
-  const { playerType, joinCode } = usePlayerType()
+  const { playerType, joinCode, playerData } = usePlayerType()
   const [players, setPlayers] = useState<Array<{ id: string; alias: string; icon: string; color: string }>>([])
   const [votes, setVotes] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
     let mounted = true
 
-    // solo players: read from localStorage and show lone icon
-    if (playerType === 'solo') {
-      const stored = typeof window !== 'undefined' ? localStorage.getItem('tf_player') : null
-      const p = stored ? JSON.parse(stored) : null
-      if (p && mounted) setPlayers([{ id: p.id || 'solo', alias: p.alias || '', icon: p.icon || 'wizard', color: p.color || '#888' }])
+    // solo players: read from context and show lone icon
+    if (playerType === 'solo' && playerData) {
+      if (mounted) setPlayers([{ id: playerData.id || 'solo', alias: playerData.alias || '', icon: playerData.icon || 'wizard', color: playerData.color || '#888' }])
       return () => { mounted = false }
     }
 

@@ -18,7 +18,7 @@ interface PlayerRow {
 
 export default function PartyPage() {
   const router = useRouter()
-  const { playerType, joinCode: ctxJoinCode, setJoinCode } = usePlayerType()
+  const { playerType, joinCode: ctxJoinCode, setJoinCode, playerData } = usePlayerType()
   const params = useParams()
   const code = params.code as string
 
@@ -52,13 +52,13 @@ export default function PartyPage() {
     if (!joinCode) return
     let mounted = true
 
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('tf_player') : null
-    const player = stored ? JSON.parse(stored) : null
+    const player = playerData
 
     const onJoinSuccess = (payload: any) => {
       if (!mounted) return
       setPlayers(payload.players || [])
       setGameStarted(Boolean(payload.gameState?.started))
+      console.log('Join success! Player ID:', player?.id)
     }
 
     const onPlayerJoined = (payload: any) => {
@@ -106,6 +106,7 @@ export default function PartyPage() {
     // emit join-session using stored player customization (host or join flow saved earlier)
     const payload = {
       joinCode,
+      playerId: player?.id || 'guest', // Include client-generated ID
       alias: player?.alias || 'Guest',
       color: player?.color || '#888',
       font: player?.font || 'Calibri',

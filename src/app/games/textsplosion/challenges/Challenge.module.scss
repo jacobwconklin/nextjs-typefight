@@ -1,0 +1,99 @@
+.challengeContainer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.challengeTitle {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  margin: 0;
+  text-align: center;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: #ffcc00;
+  text-align: center;
+  font-style: italic;
+  margin-top: -0.5rem;
+}
+
+.textContent {
+  font-size: 1.2rem;
+  line-height: 1.8;
+  padding: 1.5rem;
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.3);
+  min-height: 60px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  transition: background-color 0.2s;
+  
+  &.error {
+    background-color: rgba(255, 0, 0, 0.2);
+    animation: shake 0.3s;
+  }
+}
+
+.char {
+  color: #888;
+  position: relative;
+  white-space: pre;
+  
+  &.typed {
+    color: #4CAF50;
+  }
+  
+  &.current {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 0 2px;
+    border-radius: 2px;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: #fff;
+      animation: blink 1s infinite;
+    }
+  }
+  
+  &.currentSubtle {
+    color: #fff;
+    opacity: 0.8;
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.5);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+}
+
+.hint {
+  font-size: 0.9rem;
+  color: #aaa;
+  text-align: center;
+  font-style: italic;
+  max-width: 90%;
+  word-wrap: break-word;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}

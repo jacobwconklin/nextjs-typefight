@@ -4,11 +4,21 @@ import React, { createContext, useContext, useState, ReactNode } from 'react'
 
 export type PlayerType = 'host' | 'join' | 'solo' | null
 
+export interface PlayerData {
+  id: string
+  alias: string
+  icon: string
+  font: string
+  color: string
+}
+
 interface PlayerTypeContextValue {
   playerType: PlayerType
   setPlayerType: (t: PlayerType) => void
   joinCode: string | null
   setJoinCode: (c: string | null) => void
+  playerData: PlayerData | null
+  setPlayerData: (p: PlayerData | null) => void
 }
 
 const PlayerTypeContext = createContext<PlayerTypeContextValue | undefined>(undefined)
@@ -16,8 +26,9 @@ const PlayerTypeContext = createContext<PlayerTypeContextValue | undefined>(unde
 export function PlayerTypeProvider({ children }: { children: ReactNode }) {
   const [playerType, setPlayerType] = useState<PlayerType>(null)
   const [joinCode, setJoinCode] = useState<string | null>(null)
+  const [playerData, setPlayerData] = useState<PlayerData | null>(null)
   return (
-    <PlayerTypeContext.Provider value={{ playerType, setPlayerType, joinCode, setJoinCode }}>
+    <PlayerTypeContext.Provider value={{ playerType, setPlayerType, joinCode, setJoinCode, playerData, setPlayerData }}>
       {children}
     </PlayerTypeContext.Provider>
   )
