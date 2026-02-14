@@ -78,25 +78,30 @@ export default function GameView({
       const newStates = new Map(prev)
       
       // Add new dangers
-      dangers.forEach(danger => {
+      dangers.forEach((danger, dangerIndex) => {
         if (!newStates.has(danger.id)) {
           const wordLength = danger.word.length
           let type: 'asteroid' | 'satellite' | 'ufo'
           let speed: number
           let svgIndex: number
           
+          // Extract index from danger ID for consistent icon assignment
+          // danger.id format: danger-{waveNumber}-{index}-{timestamp}
+          const idParts = danger.id.split('-')
+          const indexFromId = idParts.length >= 3 ? parseInt(idParts[2]) : dangerIndex
+          
           if (wordLength >= 10) {
             type = 'ufo'
             speed = 60 // pixels per second
-            svgIndex = Math.floor(Math.random() * 2) + 1 // 1-2
+            svgIndex = (indexFromId % 2) + 1 // Loop through 1-2
           } else if (wordLength >= 6) {
             type = 'satellite'
             speed = 35
-            svgIndex = Math.floor(Math.random() * 4) + 1 // 1-4
+            svgIndex = (indexFromId % 4) + 1 // Loop through 1-4
           } else {
             type = 'asteroid'
             speed = 20
-            svgIndex = Math.floor(Math.random() * 4) + 1 // 1-4
+            svgIndex = (indexFromId % 4) + 1 // Loop through 1-4
           }
           
           newStates.set(danger.id, {
@@ -303,7 +308,10 @@ export default function GameView({
             <img 
               src={getDangerSvg(danger)} 
               alt={danger.type}
-              className={styles.dangerIcon}
+              className={`${styles.dangerIcon} ${
+                danger.type === 'asteroid' ? styles.spinFast :
+                danger.type === 'satellite' ? styles.spinSlow : ''
+              }`}
             />
             {!danger.destroyed && !danger.colliding && (
               <div className={styles.dangerWord}>{danger.word}</div>

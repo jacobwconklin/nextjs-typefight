@@ -166,18 +166,29 @@
   color: #ffd700;
 }
 
-.playerInfo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.iconCell {
+  text-align: center;
 }
 
 .playerIcon {
-  font-size: 24px;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #1e2436;
+
+  img {
+    width: 28px;
+    height: 28px;
+  }
 }
 
 .playerAlias {
   font-weight: 600;
+  color: white;
+  text-align: left;
 }
 
 .count {

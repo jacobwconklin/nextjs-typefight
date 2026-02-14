@@ -83,6 +83,7 @@ export default function GameOverView({
               <thead>
                 <tr>
                   <th>Rank</th>
+                  <th>Icon</th>
                   <th>Player</th>
                   <th>Count</th>
                 </tr>
@@ -91,11 +92,16 @@ export default function GameOverView({
                 {playerList.map((player, index) => (
                   <tr key={player.id}>
                     <td className={styles.rank}>#{index + 1}</td>
-                    <td className={styles.playerInfo}>
-                      <span className={styles.playerIcon}>{player.icon}</span>
-                      <span className={styles.playerAlias} style={{ color: player.color }}>
-                        {player.alias}
-                      </span>
+                    <td className={styles.iconCell}>
+                      <div
+                        className={styles.playerIcon}
+                        style={{ backgroundColor: player.color }}
+                      >
+                        <img src={`/icons/${player.icon}.svg`} alt={player.alias} />
+                      </div>
+                    </td>
+                    <td className={styles.playerAlias}>
+                      {player.alias}
                     </td>
                     <td className={styles.count}>{player.dangersDestroyed}</td>
                   </tr>
@@ -103,7 +109,7 @@ export default function GameOverView({
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={2} className={styles.totalLabel}>Total</td>
+                  <td colSpan={3} className={styles.totalLabel}>Total</td>
                   <td className={styles.totalCount}>{totalDestroyed}</td>
                 </tr>
               </tfoot>
