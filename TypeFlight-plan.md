@@ -87,3 +87,7 @@
 - Danger spawns and strikes synchronized
 - Death/resurrection state updates
 - Survival time tracking
+
+https://www.freepik.com/free-vector/space-guns-vfx-effect-laser-blasters-with-beams_36152453.htm#from_element=cross_selling__vector
+https://www.freepik.com/free-vector/magic-spells-game-skills-icons_39985660.htm#fromView=search&page=2&position=1&uuid=f6e60bc1-8531-4873-8274-e31bbb7bd7ff&query=elements+ice+fire+lightning
+

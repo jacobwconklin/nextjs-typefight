@@ -6,6 +6,7 @@ export type TypeFlightEventType =
   | 'fire'
   | 'ice'
   | 'lightning'
+  | 'bomb'
   | 'bob'
   | 'laser'
   | 'spikes'
@@ -62,6 +63,7 @@ export const TYPEFLIGHT_EVENT_TYPES: TypeFlightEventType[] = [
   'fire',
   'ice',
   'lightning',
+  'bomb',
   'bob',
   'laser',
   'spikes'
@@ -120,6 +122,7 @@ export const createEmptyEventCounts = (): Record<TypeFlightEventType, number> =>
   fire: 0,
   ice: 0,
   lightning: 0,
+  bomb: 0,
   bob: 0,
   laser: 0,
   spikes: 0
