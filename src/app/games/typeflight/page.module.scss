@@ -1,0 +1,249 @@
+.page {
+  --controls-width: 240px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  background:
+    radial-gradient(circle at 18% 14%, rgba(124, 58, 237, 0.25), transparent 40%),
+    radial-gradient(circle at 78% 70%, rgba(6, 182, 212, 0.2), transparent 45%),
+    radial-gradient(circle at 60% 20%, rgba(236, 72, 153, 0.15), transparent 38%),
+    #06070d;
+  overflow: hidden;
+}
+
+.playSurface {
+  display: grid;
+  grid-template-columns: var(--controls-width) auto;
+  align-items: stretch;
+  height: 100vh;
+}
+
+.controlsColumn {
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    linear-gradient(160deg, rgba(22, 24, 36, 0.95), rgba(11, 14, 24, 0.96));
+  color: #f6f7ff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 22px 14px;
+  position: relative;
+  box-shadow: 14px 0 28px rgba(0, 0, 0, 0.45);
+}
+
+.controlsTitle {
+  margin: 4px 0 24px;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, #8be9ff 0%, #c4b5fd 45%, #f9a8d4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.compassArea {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  backdrop-filter: blur(4px);
+}
+
+.directionRow {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  align-items: center;
+  column-gap: 12px;
+  padding: 12px 10px;
+}
+
+.directionRow + .directionRow {
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.directionWord {
+  font-size: 1.15rem;
+  line-height: 1;
+  font-weight: 700;
+  color: #f4f6ff;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  text-shadow:
+    0 0 10px rgba(139, 233, 255, 0.22),
+    0 0 22px rgba(196, 181, 253, 0.2);
+}
+
+.directionArrow {
+  width: 24px;
+  height: 24px;
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  background:
+    linear-gradient(135deg, #67e8f9 0%, #a78bfa 48%, #f472b6 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 0 18px rgba(103, 232, 249, 0.45),
+    0 0 34px rgba(244, 114, 182, 0.26);
+}
+
+.arrowUp {
+  transform: rotate(0deg);
+}
+
+.arrowRight {
+  transform: rotate(90deg);
+}
+
+.arrowDown {
+  transform: rotate(180deg);
+}
+
+.arrowLeft {
+  transform: rotate(270deg);
+}
+
+.playerInput {
+  margin-top: 28px;
+  width: 92%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(10, 11, 18, 0.85);
+  color: #fff;
+  font-size: 1rem;
+  padding: 12px 12px;
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 10px 24px rgba(0, 0, 0, 0.38);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.playerInput:focus {
+  border-color: rgba(103, 232, 249, 0.8);
+  box-shadow:
+    0 0 0 2px rgba(103, 232, 249, 0.2),
+    0 0 24px rgba(167, 139, 250, 0.28);
+}
+
+.playerInput::placeholder {
+  color: rgba(255, 255, 255, 0.72);
+  opacity: 1;
+}
+
+.statusLine {
+  margin-top: 12px;
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.76);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gridArea {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(20, 23, 35, 0.72), rgba(5, 6, 12, 0.96));
+  overflow: hidden;
+}
+
+.gridSquare {
+  width: min(calc(100vw - var(--controls-width)), 100vh);
+  height: min(calc(100vw - var(--controls-width)), 100vh);
+  position: relative;
+}
+
+.grid {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(17, 21, 36, 0.96), rgba(10, 13, 23, 0.96));
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 24px 55px rgba(0, 0, 0, 0.5),
+    0 0 38px rgba(94, 234, 212, 0.13),
+    0 0 42px rgba(167, 139, 250, 0.13);
+}
+
+.tile {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(140deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+}
+
+.playerMarker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 8.4%;
+  height: 8.4%;
+  pointer-events: none;
+}
+
+.markerInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.38),
+    inset 0 0 14px rgba(255, 255, 255, 0.2);
+}
+
+.markerInner img {
+  width: 82%;
+  height: 82%;
+  object-fit: contain;
+}
+
+.currentPlayerMarker .markerInner {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 2px rgba(6, 182, 212, 0.48),
+    0 0 20px rgba(103, 232, 249, 0.5),
+    0 0 30px rgba(244, 114, 182, 0.24),
+    0 8px 16px rgba(0, 0, 0, 0.45);
+}
+
+.downedPlayer .markerInner {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+@media (max-width: 1000px) {
+  .page {
+    --controls-width: 210px;
+  }
+
+  .controlsTitle {
+    font-size: 1.6rem;
+  }
+
+  .directionWord {
+    font-size: 1rem;
+  }
+
+  .playerInput {
+    font-size: 1rem;
+  }
+}
