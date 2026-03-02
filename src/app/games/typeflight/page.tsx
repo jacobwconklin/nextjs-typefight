@@ -9,6 +9,8 @@ import GameOverView from './GameOverView'
 import {
   moveWithWrap,
   sendTypeFlightPlayerKilled,
+  sendTypeFlightReviveWordTyped,
+  sendTypeFlightPlayerRevived,
   sendTypeFlightMove,
   type TypeFlightDirection,
   type TypeFlightEventType,
@@ -167,6 +169,15 @@ const createDirectionWords = (): DirectionWords => {
   return map
 }
 
+const createReviveWords = (count: number): string[] => {
+  const used = new Set<string>()
+  return Array.from({ length: Math.max(0, count) }).map(() => {
+    const next = randomWord(used)
+    used.add(next)
+    return next
+  })
+}
+
 const randomStart = () => ({
   x: Math.floor(Math.random() * 10),
   y: Math.floor(Math.random() * 10),
@@ -185,8 +196,12 @@ export default function TypeFlightPage() {
   const [flashEvents, setFlashEvents] = useState<
     Array<{ id: string; type: TypeFlightEventType | 'bomb'; positions: Array<{ x: number; y: number }> }>
   >([])
+  const [playerDeaths, setPlayerDeaths] = useState<Record<string, number>>({})
   const [wordsTyped, setWordsTyped] = useState<Record<string, number>>({})
   const [gameElapsedMs, setGameElapsedMs] = useState(0)
+  const [reviveWords, setReviveWords] = useState<string[]>([])
+  const [reviveProgress, setReviveProgress] = useState(0)
+  const [reviveDeathCount, setReviveDeathCount] = useState(0)
   const [gameOverStats, setGameOverStats] = useState<GameOverStats | null>(null)
   const timeoutRefs = useRef<number[]>([])
   const playerStatesRef = useRef(playerStates)
@@ -245,6 +260,7 @@ export default function TypeFlightPage() {
         const state = response.session.gameState
         if (state?.gameType === 'typeflight' && state.players) {
           setPlayerStates(state.players)
+          setPlayerDeaths(state.playerDeaths || {})
           setWordsTyped(state.wordsTyped || {})
           setGameElapsedMs(state.elapsedMs || 0)
           if (state.gameOver) {
@@ -293,6 +309,7 @@ export default function TypeFlightPage() {
 
       if (session.gameState?.gameType === 'typeflight' && session.gameState.players) {
         setPlayerStates(session.gameState.players)
+        setPlayerDeaths(session.gameState.playerDeaths || {})
         setWordsTyped(session.gameState.wordsTyped || {})
         setGameElapsedMs(session.gameState.elapsedMs || 0)
         setGameOverStats(
@@ -395,6 +412,10 @@ export default function TypeFlightPage() {
         setWordsTyped(payload.wordsTyped)
       }
 
+      if (payload.playerDeaths) {
+        setPlayerDeaths(payload.playerDeaths)
+      }
+
       if ((payload.type === 'game-over' || payload.gameOver) && payload.playerDeaths && payload.eventCounts) {
         setGameOverStats({
           elapsedMs: payload.elapsedMs || 0,
@@ -430,6 +451,47 @@ export default function TypeFlightPage() {
   )
 
   const currentPlayerState = currentPlayerId ? playerStates[currentPlayerId] : undefined
+  const currentDeathCount = currentPlayerId ? playerDeaths[currentPlayerId] || 0 : 0
+  const requiredReviveWords = currentDeathCount * 5
+
+  const canAttemptRevive = useMemo(() => {
+    if (!currentPlayerId || currentPlayerState?.alive !== false) return false
+
+    return Object.entries(playerStates).some(([playerId, state]) => {
+      if (playerId === currentPlayerId) return false
+      return state.alive && state.x === currentPlayerState.x && state.y === currentPlayerState.y
+    })
+  }, [currentPlayerId, currentPlayerState, playerStates])
+
+  useEffect(() => {
+    if (!currentPlayerId) return
+
+    if (currentPlayerState?.alive !== false) {
+      if (reviveWords.length || reviveProgress > 0) {
+        setReviveWords([])
+        setReviveProgress(0)
+      }
+      return
+    }
+
+    if (requiredReviveWords <= 0) {
+      return
+    }
+
+    if (reviveDeathCount !== currentDeathCount || reviveWords.length !== requiredReviveWords) {
+      setReviveWords(createReviveWords(requiredReviveWords))
+      setReviveProgress(0)
+      setReviveDeathCount(currentDeathCount)
+    }
+  }, [
+    currentDeathCount,
+    currentPlayerId,
+    currentPlayerState?.alive,
+    requiredReviveWords,
+    reviveDeathCount,
+    reviveProgress,
+    reviveWords.length
+  ])
 
   const warningCellByKey = useMemo(() => {
     const map: Record<string, TypeFlightEventType | 'bomb'> = {}
@@ -503,6 +565,62 @@ export default function TypeFlightPage() {
     setInput('')
   }
 
+  const completeRevive = () => {
+    if (!currentPlayerId || !currentPlayerState) return
+
+    const revivePosition = { x: currentPlayerState.x, y: currentPlayerState.y }
+
+    setPlayerStates((prev) => {
+      const existing = prev[currentPlayerId]
+      if (!existing) return prev
+
+      return {
+        ...prev,
+        [currentPlayerId]: {
+          ...existing,
+          alive: true
+        }
+      }
+    })
+
+    if (playerType !== 'solo') {
+      sendTypeFlightPlayerRevived(revivePosition)
+    }
+
+    setReviveWords([])
+    setReviveProgress(0)
+    setInput('')
+  }
+
+  const tryConsumeReviveWord = (rawValue: string) => {
+    const value = rawValue.toLowerCase().trim()
+    if (!value || currentPlayerState?.alive !== false) return
+    if (!canAttemptRevive || reviveWords.length === 0) return
+
+    const targetWord = reviveWords[reviveProgress]
+    if (!targetWord || targetWord !== value) return
+
+    if (currentPlayerId) {
+      setWordsTyped((prev) => ({
+        ...prev,
+        [currentPlayerId]: (prev[currentPlayerId] || 0) + 1
+      }))
+    }
+
+    if (playerType !== 'solo') {
+      sendTypeFlightReviveWordTyped()
+    }
+
+    const nextProgress = reviveProgress + 1
+    if (nextProgress >= reviveWords.length) {
+      completeRevive()
+      return
+    }
+
+    setReviveProgress(nextProgress)
+    setInput('')
+  }
+
   const handleExit = () => {
     if (playerType === 'solo') {
       router.push('/games')
@@ -572,13 +690,21 @@ export default function TypeFlightPage() {
             onChange={(e) => {
               const nextValue = e.target.value
               setInput(nextValue)
-              tryConsumeMovementWord(nextValue)
+              if (currentPlayerState?.alive === false) {
+                tryConsumeReviveWord(nextValue)
+              } else {
+                tryConsumeMovementWord(nextValue)
+              }
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
-                tryConsumeMovementWord(input)
-                setInput('')
+                if (currentPlayerState?.alive === false) {
+                  tryConsumeReviveWord(input)
+                } else {
+                  tryConsumeMovementWord(input)
+                  setInput('')
+                }
               }
             }}
             autoComplete="off"
@@ -587,9 +713,21 @@ export default function TypeFlightPage() {
             spellCheck={false}
           />
 
-          <div className={styles.statusLine}>
-            {currentPlayerState?.alive === false ? 'You are downed' : 'You are alive'}
-          </div>
+          {currentPlayerState?.alive === false && reviveWords.length > 0 && (
+            <div className={styles.revivePanel}>
+              <h3 className={styles.reviveTitle}>Type To Revive</h3>
+              <div className={styles.reviveWords}>
+                <span className={`${styles.reviveWord} ${styles.reviveWordCurrent}`}>
+                  {reviveWords[reviveProgress]}
+                </span>
+              </div>
+              <div className={styles.reviveHint}>
+                {canAttemptRevive
+                  ? `${reviveProgress}/${reviveWords.length}`
+                  : 'A living teammate must stand on your tile'}
+              </div>
+            </div>
+          )}
 
           {(playerType === 'host' || playerType === 'solo') && (
             <button className={styles.exitButton} onClick={handleExit}>

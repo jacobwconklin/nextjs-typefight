@@ -156,6 +156,61 @@
   text-transform: uppercase;
 }
 
+.revivePanel {
+  width: 92%;
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(9, 11, 20, 0.72);
+}
+
+.reviveTitle {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f1f5f9;
+}
+
+.reviveWords {
+  margin-top: 8px;
+  display: block;
+}
+
+.reviveWord {
+  display: inline-block;
+  padding: 2px 0;
+  border: 0;
+  color: #f4f6ff;
+  background: transparent;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  text-shadow:
+    0 0 10px rgba(139, 233, 255, 0.22),
+    0 0 22px rgba(196, 181, 253, 0.2);
+}
+
+.reviveWordDone {
+  border-color: rgba(52, 211, 153, 0.65);
+  background: rgba(52, 211, 153, 0.18);
+  color: #ecfdf5;
+}
+
+.reviveWordCurrent {
+  color: #f4f6ff;
+}
+
+.reviveHint {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.66);
+}
+
 .exitButton {
   margin-top: auto;
   width: 92%;

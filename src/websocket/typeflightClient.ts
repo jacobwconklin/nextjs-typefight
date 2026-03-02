@@ -150,6 +150,12 @@ export const sendTypeFlightPlayerRevived = (position: GridPosition) => {
   })
 }
 
+export const sendTypeFlightReviveWordTyped = () => {
+  wsClient.send('update-game', {
+    type: 'revive-word-typed'
+  })
+}
+
 export const sendTypeFlightMove = (direction: TypeFlightDirection) => {
   wsClient.send('update-game', {
     type: 'move',
