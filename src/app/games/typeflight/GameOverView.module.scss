@@ -46,8 +46,8 @@
 
 .tables {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  grid-template-columns: 1fr;
+  gap: 22px;
 }
 
 .section h2 {
@@ -139,6 +139,6 @@
 
 @media (max-width: 860px) {
   .tables {
-    grid-template-columns: 1fr;
+    gap: 18px;
   }
 }

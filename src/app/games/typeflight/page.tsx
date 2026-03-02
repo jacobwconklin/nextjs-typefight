@@ -12,7 +12,8 @@ import {
   sendTypeFlightMove,
   type TypeFlightDirection,
   type TypeFlightEventType,
-  type TypeFlightPlayerState
+  type TypeFlightPlayerState,
+  wrapGridCoordinate
 } from '../../../websocket/typeflightClient'
 import { generate } from 'random-words'
 
@@ -47,11 +48,67 @@ interface GameOverStats {
 }
 
 const DIRECTIONS: TypeFlightDirection[] = ['up', 'right', 'down', 'left']
-const WARNING_DURATION_MS = 1500
+const CASUAL_GAME_LENGTH_MS = 60 * 1000
+const INTENSE_GAME_LENGTH_MS = 45 * 1000
+const START_WARNING_DURATION_MS = 2500
+const CASUAL_END_WARNING_DURATION_MS = 1500
+const MAX_WARNING_DURATION_MS = 500
 const ACTION_FLASH_MS = 260
 
+type EventImpactOffset = { dx: number; dy: number }
+
+// Update each event's offsets to define its impact pattern.
+const EVENT_IMPACT_OFFSETS: Record<TypeFlightEventType, EventImpactOffset[]> = {
+  fire: [
+    { dx: -1, dy: 0 },
+    { dx: 0, dy: 0 },
+    { dx: 1, dy: 0 },
+    { dx: 0, dy: 1 },
+    { dx: 0, dy: 2 }
+  ],
+
+  ice: [
+    { dx: 0, dy: 0 },
+    { dx: -1, dy: -1 },
+    { dx: -1, dy: 1 },
+    { dx: 1, dy: 1 },
+    { dx: 1, dy: -1 }
+  ],
+
+  lightning: [
+    { dx: 0, dy: 0 },
+    { dx: -1, dy: 1 },
+    { dx: -2, dy: 0 },
+    { dx: 1, dy: 1 },
+    { dx: 2, dy: 0 }
+  ],
+
+  bomb: [
+    { dx: 0, dy: 0 },
+    { dx: -1, dy: 0 },
+    { dx: 0, dy: 1 },
+    { dx: 0, dy: -1 },
+    { dx: 1, dy: 0 }
+  ],
+
+  laser: [
+    { dx: -2, dy: 0 },
+    { dx: -1, dy: 0 },
+    { dx: 0, dy: 0 },
+    { dx: 1, dy: 0 },
+    { dx: 2, dy: 0 }
+  ],
+
+  spikes: [
+    { dx: 0, dy: 1 },
+    { dx: -1, dy: 0 },
+    { dx: -1, dy: -1 },
+    { dx: 1, dy: 0 },
+    { dx: 1, dy: -1 }
+  ]
+}
+
 const toEventType = (value: string): TypeFlightEventType | 'bomb' => {
-  if (value === 'bob') return 'bomb'
   if (value === 'fire' || value === 'ice' || value === 'lightning' || value === 'bomb' || value === 'laser' || value === 'spikes') {
     return value
   }
@@ -59,6 +116,29 @@ const toEventType = (value: string): TypeFlightEventType | 'bomb' => {
 }
 
 const cellKey = (x: number, y: number) => `${x},${y}`
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
+
+const lerp = (start: number, end: number, t: number) => start + (end - start) * t
+
+const getWarningDurationMs = (elapsedMs: number) => {
+  if (elapsedMs <= CASUAL_GAME_LENGTH_MS) {
+    const t = clamp01(elapsedMs / CASUAL_GAME_LENGTH_MS)
+    return Math.round(lerp(START_WARNING_DURATION_MS, CASUAL_END_WARNING_DURATION_MS, t))
+  }
+
+  const intenseElapsed = elapsedMs - CASUAL_GAME_LENGTH_MS
+  const t = clamp01(intenseElapsed / INTENSE_GAME_LENGTH_MS)
+  return Math.round(lerp(CASUAL_END_WARNING_DURATION_MS, MAX_WARNING_DURATION_MS, t))
+}
+
+const getEventImpactPositions = (event: LiveEvent): Array<{ x: number; y: number }> => {
+  const offsets = EVENT_IMPACT_OFFSETS[event.type] ?? []
+  return offsets.map((offset) => ({
+    x: wrapGridCoordinate(event.position.x + offset.dx),
+    y: wrapGridCoordinate(event.position.y + offset.dy)
+  }))
+}
 
 const randomWord = (exclude: Set<string> = new Set()): string => {
   let next = ''
@@ -102,12 +182,16 @@ export default function TypeFlightPage() {
   const [directionWords, setDirectionWords] = useState<DirectionWords>(() => createDirectionWords())
   const [input, setInput] = useState('')
   const [warningEvents, setWarningEvents] = useState<LiveEvent[]>([])
-  const [rowFlashes, setRowFlashes] = useState<Array<{ id: string; y: number; type: TypeFlightEventType | 'bomb' }>>([])
+  const [flashEvents, setFlashEvents] = useState<
+    Array<{ id: string; type: TypeFlightEventType | 'bomb'; positions: Array<{ x: number; y: number }> }>
+  >([])
   const [wordsTyped, setWordsTyped] = useState<Record<string, number>>({})
+  const [gameElapsedMs, setGameElapsedMs] = useState(0)
   const [gameOverStats, setGameOverStats] = useState<GameOverStats | null>(null)
   const timeoutRefs = useRef<number[]>([])
   const playerStatesRef = useRef(playerStates)
   const currentPlayerIdRef = useRef(currentPlayerId)
+  const gameElapsedMsRef = useRef(gameElapsedMs)
 
   useEffect(() => {
     playerStatesRef.current = playerStates
@@ -116,6 +200,10 @@ export default function TypeFlightPage() {
   useEffect(() => {
     currentPlayerIdRef.current = currentPlayerId
   }, [currentPlayerId])
+
+  useEffect(() => {
+    gameElapsedMsRef.current = gameElapsedMs
+  }, [gameElapsedMs])
 
   useEffect(() => {
     return () => {
@@ -158,6 +246,7 @@ export default function TypeFlightPage() {
         if (state?.gameType === 'typeflight' && state.players) {
           setPlayerStates(state.players)
           setWordsTyped(state.wordsTyped || {})
+          setGameElapsedMs(state.elapsedMs || 0)
           if (state.gameOver) {
             setGameOverStats({
               elapsedMs: state.elapsedMs || 0,
@@ -205,6 +294,7 @@ export default function TypeFlightPage() {
       if (session.gameState?.gameType === 'typeflight' && session.gameState.players) {
         setPlayerStates(session.gameState.players)
         setWordsTyped(session.gameState.wordsTyped || {})
+        setGameElapsedMs(session.gameState.elapsedMs || 0)
         setGameOverStats(
           session.gameState.gameOver
             ? {
@@ -228,6 +318,10 @@ export default function TypeFlightPage() {
     const onGameUpdate = (payload: any) => {
       if (!mounted || payload?.gameType !== 'typeflight') return
 
+      if (typeof payload.elapsedMs === 'number') {
+        setGameElapsedMs(payload.elapsedMs)
+      }
+
       if (payload.type === 'event-spawned' && payload.event?.id) {
         const event: LiveEvent = {
           id: payload.event.id,
@@ -240,15 +334,21 @@ export default function TypeFlightPage() {
 
         setWarningEvents((prev) => [...prev, event])
 
+        const impactedPositions = getEventImpactPositions(event)
+        const impactedKeys = new Set(impactedPositions.map((position) => cellKey(position.x, position.y)))
+
+        const warningDurationMs = getWarningDurationMs(
+          typeof payload.elapsedMs === 'number' ? payload.elapsedMs : gameElapsedMsRef.current
+        )
+
         const actionTimeout = window.setTimeout(() => {
           // Remove warning/icon
           setWarningEvents((prev) => prev.filter((evt) => evt.id !== event.id))
 
-          // Flash all squares in row (temporary behavior until per-event patterns are added)
-          setRowFlashes((prev) => [...prev, { id: event.id, y: event.position.y, type: event.type }])
+          setFlashEvents((prev) => [...prev, { id: event.id, type: event.type, positions: impactedPositions }])
 
           const clearFlashTimeout = window.setTimeout(() => {
-            setRowFlashes((prev) => prev.filter((row) => row.id !== event.id))
+            setFlashEvents((prev) => prev.filter((flash) => flash.id !== event.id))
           }, ACTION_FLASH_MS)
 
           timeoutRefs.current.push(clearFlashTimeout)
@@ -257,7 +357,7 @@ export default function TypeFlightPage() {
           setPlayerStates((prev) => {
             const next = { ...prev }
             Object.entries(prev).forEach(([pid, state]) => {
-              if (state.alive && state.y === event.position.y) {
+              if (state.alive && impactedKeys.has(cellKey(state.x, state.y))) {
                 next[pid] = { ...state, alive: false }
               }
             })
@@ -268,10 +368,10 @@ export default function TypeFlightPage() {
           const currentId = currentPlayerIdRef.current
           const me = currentId ? snapshot[currentId] : undefined
 
-          if (me?.alive && me.y === event.position.y) {
+          if (me?.alive && impactedKeys.has(cellKey(me.x, me.y))) {
             sendTypeFlightPlayerKilled({ x: me.x, y: me.y })
           }
-        }, WARNING_DURATION_MS)
+        }, warningDurationMs)
 
         timeoutRefs.current.push(actionTimeout)
         return
@@ -334,18 +434,22 @@ export default function TypeFlightPage() {
   const warningCellByKey = useMemo(() => {
     const map: Record<string, TypeFlightEventType | 'bomb'> = {}
     warningEvents.forEach((event) => {
-      map[cellKey(event.position.x, event.position.y)] = event.type
+      getEventImpactPositions(event).forEach((position) => {
+        map[cellKey(position.x, position.y)] = event.type
+      })
     })
     return map
   }, [warningEvents])
 
-  const flashRowByY = useMemo(() => {
-    const map: Record<number, TypeFlightEventType | 'bomb'> = {}
-    rowFlashes.forEach((row) => {
-      map[row.y] = row.type
+  const flashCellByKey = useMemo(() => {
+    const map: Record<string, TypeFlightEventType | 'bomb'> = {}
+    flashEvents.forEach((flash) => {
+      flash.positions.forEach((position) => {
+        map[cellKey(position.x, position.y)] = flash.type
+      })
     })
     return map
-  }, [rowFlashes])
+  }, [flashEvents])
 
   const moveCurrentPlayer = (direction: TypeFlightDirection) => {
     if (!currentPlayerId) return
@@ -501,7 +605,7 @@ export default function TypeFlightPage() {
                 const x = index % 10
                 const y = Math.floor(index / 10)
                 const warningType = warningCellByKey[cellKey(x, y)]
-                const flashType = flashRowByY[y]
+                const flashType = flashCellByKey[cellKey(x, y)]
 
                 return (
                   <div
@@ -526,7 +630,9 @@ export default function TypeFlightPage() {
                   }}
                   title={event.type}
                 >
-                  <div className={styles.eventMarkerInner}>{event.type.slice(0, 1).toUpperCase()}</div>
+                  <div className={styles.eventMarkerInner}>
+                    <img src={`/icons/typeflight/${event.type}.png`} alt={event.type} />
+                  </div>
                 </div>
               ))}
 
