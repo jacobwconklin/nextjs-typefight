@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlayerType } from '../../../context/PlayerTypeContext'
 import wsClient from '../../../websocket/wsClient'
+import GameInstructionsOverlay from '../../../components/GameInstructionsOverlay'
 import GameView from './GameView'
 import GameOverView from './GameOverView'
 
@@ -35,6 +36,13 @@ interface Player {
   font?: string
 }
 
+const SPACEBAR_INVADERS_RULES = [
+  'Type matching danger words to destroy them before they hit Earth.',
+  'Earth can only take a few hits, then the game ends.',
+  'Each cleared wave brings new incoming dangers.',
+  'Survive as long as possible and clear as many waves as you can.'
+]
+
 export default function SpaceBarInvadersPage() {
   const router = useRouter()
   const { playerType, joinCode, playerData } = usePlayerType()
@@ -49,6 +57,7 @@ export default function SpaceBarInvadersPage() {
   })
   const [players, setPlayers] = useState<Player[]>([])
   const [currentPlayerId, setCurrentPlayerId] = useState<string>('')
+  const [hasBegun, setHasBegun] = useState(false)
 
   // Initialize game state and listen for updates
   useEffect(() => {
@@ -112,6 +121,10 @@ export default function SpaceBarInvadersPage() {
         console.log('Exiting to game selection')
         router.push('/games')
         return
+      }
+
+      if (payload.session && payload.session.gameName === 'spacebarinvaders') {
+        setHasBegun(true)
       }
       
       if (payload.success && payload.session) {
@@ -256,6 +269,15 @@ export default function SpaceBarInvadersPage() {
     }
   }
 
+  const handleBegin = () => {
+    if (playerType === 'solo') {
+      setHasBegun(true)
+      return
+    }
+
+    startGame()
+  }
+
   // Handle replay - restart the game
   const handleReplay = () => {
     console.log('handleReplay called, playerType:', playerType, 'joinCode:', joinCode)
@@ -281,6 +303,17 @@ export default function SpaceBarInvadersPage() {
       console.log('Sending start-game for games')
       wsClient.send('start-game', { code: joinCode, gameName: 'games' })
     }
+  }
+
+  if (!hasBegun) {
+    return (
+      <GameInstructionsOverlay
+        title="SpaceBarInvaders"
+        rules={SPACEBAR_INVADERS_RULES}
+        canBegin={playerType === 'host' || playerType === 'solo'}
+        onBegin={handleBegin}
+      />
+    )
   }
 
   return (

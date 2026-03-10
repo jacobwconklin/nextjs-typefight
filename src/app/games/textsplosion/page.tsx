@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlayerType } from '../../../context/PlayerTypeContext'
 import wsClient from '../../../websocket/wsClient'
+import GameInstructionsOverlay from '../../../components/GameInstructionsOverlay'
 import GameView from './GameView'
 import GameOverView from './GameOverView'
 import { generate } from 'random-words'
@@ -40,6 +41,13 @@ interface LocalGameState {
   currentPumpWord: string
   colorWords: ColorPair[]
 }
+
+const TEXTSPLOSION_RULES = [
+  'One player is in the hot seat while everyone else pumps the balloon.',
+  'Hot seat clears challenge text to pass the turn.',
+  'Other players type pump words to grow pressure faster.',
+  'If the balloon pops on your turn, you are eliminated.'
+]
 
 // Generate a random word for pumping
 const getRandomWord = () => {
@@ -97,6 +105,7 @@ export default function TextSplosionPage() {
   const { playerType, joinCode, playerData } = usePlayerType()
   const [players, setPlayers] = useState<Player[]>([])
   const [currentPlayerId, setCurrentPlayerId] = useState<string>('')
+  const [hasBegun, setHasBegun] = useState(false)
   const [gameState, setGameState] = useState<GameState>({
     playerOrder: [],
     expiredPlayers: [],
@@ -184,6 +193,10 @@ export default function TextSplosionPage() {
         console.log('Exiting to game selection')
         router.push('/games')
         return
+      }
+
+      if (payload.session && payload.session.gameName === 'textsplosion') {
+        setHasBegun(true)
       }
       
       // Handle game restart for textsplosion
@@ -444,6 +457,28 @@ export default function TextSplosionPage() {
       // Host - go back to game selection
       wsClient.send('start-game', { code: joinCode, gameName: 'games' })
     }
+  }
+
+  const handleBegin = () => {
+    if (playerType === 'solo') {
+      setHasBegun(true)
+      return
+    }
+
+    if (playerType === 'host' && joinCode) {
+      wsClient.send('start-game', { code: joinCode, gameName: 'textsplosion' })
+    }
+  }
+
+  if (!hasBegun) {
+    return (
+      <GameInstructionsOverlay
+        title="TextSplosion"
+        rules={TEXTSPLOSION_RULES}
+        canBegin={playerType === 'host' || playerType === 'solo'}
+        onBegin={handleBegin}
+      />
+    )
   }
 
   if (gameState.finished && gameState.winnerId) {

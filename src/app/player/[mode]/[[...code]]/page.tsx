@@ -240,32 +240,6 @@ export default function PlayerCustomizationPage() {
 
   return (
     <div className={styles.container} style={{ backgroundColor: mutedBg, position: 'relative' }}>
-      {/* Home icon top-left */}
-      <button
-        aria-label="Home"
-        title="Home"
-        onClick={() => router.push('/')}
-        style={{
-          position: 'absolute',
-          top: 12,
-          left: 12,
-          background: 'transparent',
-          border: 'none',
-          padding: 6,
-          borderRadius: 6,
-          cursor: 'pointer',
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <path d="M3 11.5L12 4l9 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
       <div className={styles.previewSection}>
         <div className={styles.playerPreview}>
           <div

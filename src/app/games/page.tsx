@@ -7,19 +7,43 @@ import styles from "./page.module.scss"
 import { usePlayerType } from "../../context/PlayerTypeContext"
 import wsClient from "../../websocket/wsClient"
 
-const GAMES = [
+type GameCard = {
+  id: string
+  title: string
+  color: string
+  disabled?: boolean
+  mediaLabel?: string
+}
+
+const GAMES: GameCard[] = [
   { id: "quickkeys", title: "QuickKeys", color: "#ff6b6b" },
   { id: "spacebarinvaders", title: "SpaceBarInvaders", color: "#4d96ff" },
   { id: "textsplosion", title: "TextSplosion", color: "#ffb84d" },
   { id: "typeflight", title: "TypeFlight", color: "#8b6bff" },
+  { id: "typekwando", title: "Typekwando", color: "#34d399" },
 ]
 
+const WORD_WAR_1: GameCard = {
+  id: "wordwar1",
+  title: "Word War 1",
+  color: "#888",
+  disabled: true,
+  mediaLabel: "Coming Soon",
+}
+
+const MULTIPLAYER_ONLY_GAME_IDS = new Set(["textsplosion", "typekwando"])
+
 export default function GamesPage() {
-  const games = useMemo(() => GAMES, [])
+  const games = useMemo(() => [...GAMES, WORD_WAR_1], [])
   const router = useRouter()
   const { playerType, joinCode, playerData } = usePlayerType()
   const [players, setPlayers] = useState<Array<{ id: string; alias: string; icon: string; color: string }>>([])
   const [votes, setVotes] = useState<Record<string, string[]>>({})
+  const isMultiplayerUnavailable = playerType === 'solo' || players.length <= 1
+
+  const isGameUnavailable = (game: GameCard) => {
+    return game.disabled || (MULTIPLAYER_ONLY_GAME_IDS.has(game.id) && isMultiplayerUnavailable)
+  }
 
   useEffect(() => {
     let mounted = true
@@ -90,7 +114,12 @@ export default function GamesPage() {
     }
   }, [playerType, joinCode, router])
 
-  const handleGameClick = (gameId: string) => {
+  const handleGameClick = (game: GameCard) => {
+    if (isGameUnavailable(game)) {
+      return
+    }
+
+    const gameId = game.id
     if (playerType === 'solo') {
       // Solo player - just navigate
       router.push(`/games/${gameId}`)
@@ -127,22 +156,36 @@ export default function GamesPage() {
         <h1 className={styles.title}>Games</h1>
         <div className={styles.grid}>
           {games.map((g) => {
+            const isMultiplayerOnly = MULTIPLAYER_ONLY_GAME_IDS.has(g.id)
+            const showMultiplayerOnly = isMultiplayerOnly && isMultiplayerUnavailable
+            const isUnavailable = isGameUnavailable(g)
             const gameVotes = votes[g.id] || []
             const voters = gameVotes.map(playerId => players.find(p => p.id === playerId)).filter(Boolean)
             
             return (
               <div key={g.id} className={styles.cardWrapper}>
                 <div 
-                  onClick={() => handleGameClick(g.id)}
-                  className={styles.card}
+                  onClick={() => handleGameClick(g)}
+                  className={`${styles.card} ${isUnavailable ? styles.cardDisabled : ''}`}
                   style={{ ["--accent" as any]: g.color }}
                 >
                   <div className={styles.cardInner}>
-                    <div className={styles.cardMedia} />
+                    <div className={styles.cardMedia}>
+                      {showMultiplayerOnly && <span className={styles.cardMediaOverlay}>Multiplayer Only</span>}
+                      {g.mediaLabel && <span className={styles.cardMediaLabel}>{g.mediaLabel}</span>}
+                    </div>
                     <div className={styles.cardBody}>
                       <h3>{g.title}</h3>
                       <p className={styles.hint}>
-                        {playerType === 'join' ? 'Click to vote' : playerType === 'host' ? 'Click to start' : 'Click to play'}
+                        {g.disabled
+                          ? 'Coming Soon'
+                          : showMultiplayerOnly
+                            ? 'Multiplayer Only'
+                            : playerType === 'join'
+                              ? 'Click to vote'
+                              : playerType === 'host'
+                                ? 'Click to start'
+                                : 'Click to play'}
                       </p>
                     </div>
                   </div>

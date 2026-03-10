@@ -1,0 +1,73 @@
+.overlay {
+  min-height: 100vh;
+  width: 100%;
+  background: #000;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  padding: 48px 24px 120px;
+  box-sizing: border-box;
+}
+
+.content {
+  width: 100%;
+  max-width: 860px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.subtitle {
+  margin: 10px 0 0;
+  font-size: 1rem;
+  opacity: 0.85;
+}
+
+.rules {
+  margin: 28px 0 0;
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: clamp(1rem, 2.2vw, 1.25rem);
+  line-height: 1.5;
+}
+
+.actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 36px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.beginButton {
+  pointer-events: auto;
+  min-width: 220px;
+  border: 1px solid #fff;
+  background: #fff;
+  color: #000;
+  border-radius: 999px;
+  padding: 14px 26px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.beginButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.waitingText {
+  margin-top: 18px;
+  font-size: 0.95rem;
+  opacity: 0.8;
+}

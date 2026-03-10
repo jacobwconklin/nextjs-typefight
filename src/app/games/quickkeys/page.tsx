@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlayerType } from '../../../context/PlayerTypeContext'
 import wsClient from '../../../websocket/wsClient'
+import GameInstructionsOverlay from '../../../components/GameInstructionsOverlay'
 import TextSelection from './TextSelection'
 import GameView from './GameView'
 import GameOverView from './GameOverView'
@@ -34,6 +35,13 @@ interface Player {
   font?: string
 }
 
+const QUICKKEYS_RULES = [
+  'Host picks one text for everyone.',
+  'Type the full text as fast and accurately as possible.',
+  'Mistakes are tracked and shown on the results screen.',
+  'Finish first with the best accuracy to win.'
+]
+
 export default function QuickKeysPage() {
   const router = useRouter()
   const { playerType, joinCode, playerData } = usePlayerType()
@@ -47,6 +55,7 @@ export default function QuickKeysPage() {
   })
   const [players, setPlayers] = useState<Player[]>([])
   const [currentPlayerId, setCurrentPlayerId] = useState<string>('')
+  const [hasBegun, setHasBegun] = useState(false)
   
   // Typing state
   const [currentCharIndex, setCurrentCharIndex] = useState(0)
@@ -159,6 +168,10 @@ export default function QuickKeysPage() {
         console.log('Exiting to game selection')
         router.push('/games')
         return
+      }
+
+      if (payload.session && payload.session.gameName === 'quickkeys') {
+        setHasBegun(true)
       }
       
       // Initialize game state from session
@@ -363,6 +376,17 @@ export default function QuickKeysPage() {
     }
   }
 
+  const handleBegin = () => {
+    if (playerType === 'solo') {
+      setHasBegun(true)
+      return
+    }
+
+    if (playerType === 'host' && joinCode) {
+      wsClient.send('start-game', { code: joinCode, gameName: 'quickkeys' })
+    }
+  }
+
   const handleReplay = () => {
     console.log('Replay clicked, playerType:', playerType)
     
@@ -405,6 +429,17 @@ export default function QuickKeysPage() {
   const totalWordCount = words.length
 
   // Text Selection View
+  if (!hasBegun) {
+    return (
+      <GameInstructionsOverlay
+        title="QuickKeys"
+        rules={QUICKKEYS_RULES}
+        canBegin={playerType === 'host' || playerType === 'solo'}
+        onBegin={handleBegin}
+      />
+    )
+  }
+
   if (showTextSelect) {
     return (
       <TextSelection

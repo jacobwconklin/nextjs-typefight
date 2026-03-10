@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlayerType } from '../../../context/PlayerTypeContext'
 import wsClient from '../../../websocket/wsClient'
+import GameInstructionsOverlay from '../../../components/GameInstructionsOverlay'
 import styles from './page.module.scss'
 import GameOverView from './GameOverView'
 import {
@@ -56,6 +57,13 @@ const START_WARNING_DURATION_MS = 2500
 const CASUAL_END_WARNING_DURATION_MS = 1500
 const MAX_WARNING_DURATION_MS = 500
 const ACTION_FLASH_MS = 260
+
+const TYPEFLIGHT_RULES = [
+  'Type direction words to move around the grid.',
+  'Avoid hazards and survive as long as possible.',
+  'If downed, type revive words while a teammate stands on your tile.',
+  'Longest survival with strong team support wins.'
+]
 
 type EventImpactOffset = { dx: number; dy: number }
 
@@ -203,6 +211,7 @@ export default function TypeFlightPage() {
   const [reviveProgress, setReviveProgress] = useState(0)
   const [reviveDeathCount, setReviveDeathCount] = useState(0)
   const [gameOverStats, setGameOverStats] = useState<GameOverStats | null>(null)
+  const [hasBegun, setHasBegun] = useState(false)
   const timeoutRefs = useRef<number[]>([])
   const playerStatesRef = useRef(playerStates)
   const currentPlayerIdRef = useRef(currentPlayerId)
@@ -259,6 +268,7 @@ export default function TypeFlightPage() {
 
         const state = response.session.gameState
         if (state?.gameType === 'typeflight' && state.players) {
+          setHasBegun(Boolean(state.hasBegun))
           setPlayerStates(state.players)
           setPlayerDeaths(state.playerDeaths || {})
           setWordsTyped(state.wordsTyped || {})
@@ -303,6 +313,8 @@ export default function TypeFlightPage() {
 
       if (session?.gameName !== 'typeflight') return
 
+      setHasBegun(Boolean(session.gameState?.hasBegun))
+
       if (Array.isArray(session.players)) {
         setPlayers(session.players)
       }
@@ -334,6 +346,16 @@ export default function TypeFlightPage() {
 
     const onGameUpdate = (payload: any) => {
       if (!mounted || payload?.gameType !== 'typeflight') return
+
+      if (payload.type === 'typeflight-begin') {
+        setHasBegun(true)
+        setPlayerStates(payload.players || {})
+        setPlayerDeaths(payload.playerDeaths || {})
+        setWordsTyped(payload.wordsTyped || {})
+        setGameElapsedMs(0)
+        setGameOverStats(null)
+        return
+      }
 
       if (typeof payload.elapsedMs === 'number') {
         setGameElapsedMs(payload.elapsedMs)
@@ -641,6 +663,28 @@ export default function TypeFlightPage() {
     if (playerType === 'host') {
       wsClient.send('start-game', { code: joinCode, gameName: 'typeflight' })
     }
+  }
+
+  const handleBegin = () => {
+    if (playerType === 'solo') {
+      setHasBegun(true)
+      return
+    }
+
+    if (playerType === 'host' && joinCode) {
+      wsClient.send('update-game', { type: 'typeflight-begin' })
+    }
+  }
+
+  if (!hasBegun) {
+    return (
+      <GameInstructionsOverlay
+        title="TypeFlight"
+        rules={TYPEFLIGHT_RULES}
+        canBegin={playerType === 'host' || playerType === 'solo'}
+        onBegin={handleBegin}
+      />
+    )
   }
 
   if (gameOverStats) {

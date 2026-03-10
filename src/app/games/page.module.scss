@@ -75,21 +75,6 @@
   color:inherit;
   perspective:800px;
   cursor:pointer;
-
-  &.disabled {
-    cursor:not-allowed;
-    opacity:0.5;
-
-    .cardInner {
-      animation:none;
-    }
-
-    &:hover .cardInner {
-      transform:translateY(0);
-      border-color:rgba(255,255,255,0.04);
-      box-shadow:0 14px 28px rgba(0,0,0,0.6), 0 8px 12px rgba(0,0,0,0.4);
-    }
-  }
 }
 
 .cardInner{
@@ -106,9 +91,32 @@
 }
 
 .cardMedia{
+  position:relative;
   height:140px;
   background:linear-gradient(130deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
-  display:block;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.cardMediaOverlay{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:1.05rem;
+  letter-spacing:0.06em;
+  color:#f2f2f2;
+  background:rgba(0,0,0,0.5);
+  z-index:1;
+}
+
+.cardMediaLabel{
+  font-size:1.05rem;
+  letter-spacing:0.06em;
+  color:#bdbdbd;
+  z-index:2;
 }
 
 .cardBody{
@@ -124,6 +132,10 @@
 .card:hover .cardMedia{
   background-image:linear-gradient(120deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)), repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 8px);
   filter:drop-shadow(0 6px 12px rgba(120,120,120,0.1));
+}
+
+.cardDisabled{
+  cursor:default;
 }
 
 .voters {
