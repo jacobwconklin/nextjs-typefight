@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import styles from './GameView.module.scss'
+import PreloadedImage from '@/components/PreloadedImage'
 
 // Interface for a danger object
 interface Danger {
@@ -275,6 +276,7 @@ export default function GameView({
       <div 
         className={styles.background}
         style={{
+          backgroundColor: '#000000',
           backgroundImage: 'url(/icons/space-stars-background.jpg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center'
@@ -283,7 +285,12 @@ export default function GameView({
       
       {/* Earth */}
       <div className={styles.earth}>
-        <img src="/icons/planet-earth.png" alt="Earth" />
+        <PreloadedImage
+          src="/icons/planet-earth.png"
+          alt="Earth"
+          placeholderColor="#000000"
+          className={styles.earthImage}
+        />
         {showEarthCollision && (
           <div className={styles.earthCollision}>
             <img src="/icons/collision.svg" alt="Collision" />

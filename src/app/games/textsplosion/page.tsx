@@ -239,13 +239,22 @@ export default function TextSplosionPage() {
       }
     }
 
+    const onSessionPhaseChanged = (payload: any) => {
+      if (!mounted) return
+      if (payload?.phase === 'lobby' && joinCode) {
+        router.push(`/party/${joinCode}`)
+      }
+    }
+
     wsClient.on('game-update', handleGameUpdate)
     wsClient.on('game-started', handleGameStarted)
+    wsClient.on('session-phase-changed', onSessionPhaseChanged)
 
     return () => {
       mounted = false
       wsClient.off('game-update', handleGameUpdate)
       wsClient.off('game-started', handleGameStarted)
+      wsClient.off('session-phase-changed', onSessionPhaseChanged)
     }
   }, [joinCode, playerType, playerData, router])
 
@@ -444,7 +453,9 @@ export default function TextSplosionPage() {
       window.location.reload()
     } else if (playerType === 'host') {
       // Host - restart TextSplosion game
-      wsClient.send('start-game', { code: joinCode, gameName: 'textsplosion' })
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'textsplosion' }).catch((err) => {
+        console.error('Failed to replay TextSplosion:', err)
+      })
     }
   }
 
@@ -454,8 +465,10 @@ export default function TextSplosionPage() {
       // Solo player - navigate back to games
       router.push('/games')
     } else if (playerType === 'host') {
-      // Host - go back to game selection
-      wsClient.send('start-game', { code: joinCode, gameName: 'games' })
+      // Host - send everyone back to game selection
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'games' }).catch((err) => {
+        console.error('Failed to return party to games page:', err)
+      })
     }
   }
 
@@ -466,7 +479,9 @@ export default function TextSplosionPage() {
     }
 
     if (playerType === 'host' && joinCode) {
-      wsClient.send('start-game', { code: joinCode, gameName: 'textsplosion' })
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'textsplosion' }).catch((err) => {
+        console.error('Failed to begin TextSplosion:', err)
+      })
     }
   }
 

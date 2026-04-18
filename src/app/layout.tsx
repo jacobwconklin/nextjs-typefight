@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.scss'
 import { PlayerTypeProvider } from '../context/PlayerTypeContext'
 import PersistentHomeButton from '../components/PersistentHomeButton'
+import MultiplayerSessionOrchestrator from '../components/MultiplayerSessionOrchestrator'
 
 export const metadata: Metadata = {
   title: 'TypeFight',
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <PlayerTypeProvider>
+          <MultiplayerSessionOrchestrator />
           <PersistentHomeButton />
           {children}
         </PlayerTypeProvider>

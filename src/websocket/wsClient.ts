@@ -16,10 +16,10 @@ class WSClient {
   url: string
   socket: Socket | null = null
   connected = false
+  private eventSeq = 0
 
   constructor(url = WEBSOCKET_URL) {
     this.url = url
-    this.connect()
   }
 
   connect() {
@@ -41,6 +41,7 @@ class WSClient {
   }
 
   on(type: string, handler: Handler) {
+    this.connect()
     this.socket?.on(type, handler)
   }
 
@@ -49,12 +50,73 @@ class WSClient {
   }
 
   send(type: string, payload: any) {
+    this.connect()
     this.socket?.emit(type, payload)
+  }
+
+  createEventId(eventType: string) {
+    this.eventSeq += 1
+    return `${eventType}:${Date.now()}:${this.eventSeq}`
+  }
+
+  emitWithAck(type: string, payload: any = {}, timeoutMs = 5000): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.connect()
+      if (!this.socket) {
+        reject(new Error('Socket not connected'))
+        return
+      }
+
+      this.socket.timeout(timeoutMs).emit(type, payload, (err: any, response: any) => {
+        if (err) {
+          reject(new Error(`Socket ack timeout: ${type}`))
+          return
+        }
+
+        if (response && response.success === false) {
+          reject(new Error(response.error || `Socket request failed: ${type}`))
+          return
+        }
+
+        resolve(response || { success: true })
+      })
+    })
+  }
+
+  async sendWithRetry(
+    type: string,
+    payload: any = {},
+    opts: { timeoutMs?: number; maxRetries?: number; backoffMs?: number[]; eventId?: string } = {}
+  ): Promise<any> {
+    const timeoutMs = opts.timeoutMs ?? 5000
+    const maxRetries = opts.maxRetries ?? 2
+    const backoffMs = opts.backoffMs ?? [0, 400, 900]
+    const eventId = opts.eventId ?? this.createEventId(type)
+
+    let attempt = 0
+    let lastError: unknown = null
+
+    while (attempt <= maxRetries) {
+      const delay = backoffMs[Math.min(attempt, backoffMs.length - 1)]
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay))
+      }
+
+      try {
+        return await this.emitWithAck(type, { ...payload, eventId }, timeoutMs)
+      } catch (err) {
+        lastError = err
+        attempt += 1
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(`Socket request failed: ${type}`)
   }
 
   // socketRequest wraps socket emit/on into a Promise for request-response pattern
   socketRequest(type: string, payload: any = {}): Promise<any> {
     return new Promise((resolve, reject) => {
+      this.connect()
       if (!this.socket) {
         reject(new Error('Socket not connected'))
         return

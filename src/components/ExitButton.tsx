@@ -19,7 +19,7 @@ import styles from './ExitButton.module.scss'
  *      if (playerType === 'solo') {
  *        router.push('/games')
  *      } else if (playerType === 'host') {
- *        wsClient.send('start-game', { code: joinCode, gameName: 'games' })
+ *        wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'games' })
  *      }
  *    }
  * 
@@ -72,9 +72,11 @@ export default function ExitButton({ gameName, className }: ExitButtonProps) {
       // Solo player - navigate back to games
       router.push('/games')
     } else if (playerType === 'host') {
-      // Host - go back to game selection
-      console.log('Host exiting to game selection')
-      wsClient.send('start-game', { code: joinCode, gameName: 'games' })
+      // Host - send everyone back to game selection
+      console.log('Host returning party to games page')
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'games' }).catch((err) => {
+        console.error('Failed to return party to games page:', err)
+      })
     }
   }
 

@@ -7,6 +7,14 @@ import wsClient from '../../../websocket/wsClient'
 import GameInstructionsOverlay from '../../../components/GameInstructionsOverlay'
 import styles from './page.module.scss'
 import GameOverView from './GameOverView'
+import { isSoloPlayer } from '../../../localGames/soloMode'
+import {
+  buildSoloPlayerMap,
+  calculateSoloSpawnSettings,
+  checkSoloGameOver,
+  createEmptyEventCounts,
+  createSoloEvents
+} from '../../../localGames/typeflightSolo'
 import {
   moveWithWrap,
   sendTypeFlightPlayerKilled,
@@ -186,15 +194,10 @@ const createReviveWords = (count: number): string[] => {
   })
 }
 
-const randomStart = () => ({
-  x: Math.floor(Math.random() * 10),
-  y: Math.floor(Math.random() * 10),
-  alive: true
-})
-
 export default function TypeFlightPage() {
   const router = useRouter()
   const { playerType, playerData, joinCode } = usePlayerType()
+  const isSolo = isSoloPlayer(playerType)
   const [players, setPlayers] = useState<Player[]>([])
   const [playerStates, setPlayerStates] = useState<Record<string, TypeFlightPlayerState>>({})
   const [currentPlayerId, setCurrentPlayerId] = useState('')
@@ -206,6 +209,7 @@ export default function TypeFlightPage() {
   >([])
   const [playerDeaths, setPlayerDeaths] = useState<Record<string, number>>({})
   const [wordsTyped, setWordsTyped] = useState<Record<string, number>>({})
+  const [eventCounts, setEventCounts] = useState(createEmptyEventCounts())
   const [gameElapsedMs, setGameElapsedMs] = useState(0)
   const [reviveWords, setReviveWords] = useState<string[]>([])
   const [reviveProgress, setReviveProgress] = useState(0)
@@ -216,6 +220,10 @@ export default function TypeFlightPage() {
   const playerStatesRef = useRef(playerStates)
   const currentPlayerIdRef = useRef(currentPlayerId)
   const gameElapsedMsRef = useRef(gameElapsedMs)
+  const wordsTypedRef = useRef(wordsTyped)
+  const eventCountsRef = useRef(eventCounts)
+  const soloStartedAtRef = useRef<number | null>(null)
+  const soloSpawnTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     playerStatesRef.current = playerStates
@@ -230,17 +238,29 @@ export default function TypeFlightPage() {
   }, [gameElapsedMs])
 
   useEffect(() => {
+    wordsTypedRef.current = wordsTyped
+  }, [wordsTyped])
+
+  useEffect(() => {
+    eventCountsRef.current = eventCounts
+  }, [eventCounts])
+
+  useEffect(() => {
     return () => {
       timeoutRefs.current.forEach((id) => window.clearTimeout(id))
       timeoutRefs.current = []
+      if (soloSpawnTimeoutRef.current !== null) {
+        window.clearTimeout(soloSpawnTimeoutRef.current)
+        soloSpawnTimeoutRef.current = null
+      }
     }
   }, [])
 
   useEffect(() => {
-    const id = playerData?.id || (playerType === 'solo' ? 'solo' : '')
+    const id = playerData?.id || (isSolo ? 'solo' : '')
     setCurrentPlayerId(id)
 
-    if (playerType === 'solo') {
+    if (isSolo) {
       const solo: Player = {
         id: id || 'solo',
         alias: playerData?.alias || 'Player',
@@ -249,12 +269,15 @@ export default function TypeFlightPage() {
         font: playerData?.font
       }
       setPlayers([solo])
-      setPlayerStates({ [solo.id]: randomStart() })
+      setPlayerStates(buildSoloPlayerMap([solo.id]))
+      setPlayerDeaths({ [solo.id]: 0 })
+      setWordsTyped({ [solo.id]: 0 })
+      setEventCounts(createEmptyEventCounts())
     }
-  }, [playerData, playerType])
+  }, [isSolo, playerData])
 
   useEffect(() => {
-    if (playerType === 'solo') return
+    if (isSolo) return
 
     let mounted = true
 
@@ -273,6 +296,14 @@ export default function TypeFlightPage() {
           setPlayerDeaths(state.playerDeaths || {})
           setWordsTyped(state.wordsTyped || {})
           setGameElapsedMs(state.elapsedMs || 0)
+          setEventCounts({
+            fire: state.eventCounts?.fire || 0,
+            ice: state.eventCounts?.ice || 0,
+            lightning: state.eventCounts?.lightning || 0,
+            bomb: state.eventCounts?.bomb || 0,
+            laser: state.eventCounts?.laser || 0,
+            spikes: state.eventCounts?.spikes || 0
+          })
           if (state.gameOver) {
             setGameOverStats({
               elapsedMs: state.elapsedMs || 0,
@@ -352,6 +383,14 @@ export default function TypeFlightPage() {
         setPlayerStates(payload.players || {})
         setPlayerDeaths(payload.playerDeaths || {})
         setWordsTyped(payload.wordsTyped || {})
+        setEventCounts({
+          fire: payload.eventCounts?.fire || 0,
+          ice: payload.eventCounts?.ice || 0,
+          lightning: payload.eventCounts?.lightning || 0,
+          bomb: payload.eventCounts?.bomb || 0,
+          laser: payload.eventCounts?.laser || 0,
+          spikes: payload.eventCounts?.spikes || 0
+        })
         setGameElapsedMs(0)
         setGameOverStats(null)
         return
@@ -439,33 +478,155 @@ export default function TypeFlightPage() {
       }
 
       if ((payload.type === 'game-over' || payload.gameOver) && payload.playerDeaths && payload.eventCounts) {
+        const nextEventCounts = {
+          fire: payload.eventCounts?.fire || 0,
+          ice: payload.eventCounts?.ice || 0,
+          lightning: payload.eventCounts?.lightning || 0,
+          bomb: payload.eventCounts?.bomb || 0,
+          laser: payload.eventCounts?.laser || 0,
+          spikes: payload.eventCounts?.spikes || 0
+        }
+        setEventCounts(nextEventCounts)
         setGameOverStats({
           elapsedMs: payload.elapsedMs || 0,
           playerDeaths: payload.playerDeaths || {},
           wordsTyped: payload.wordsTyped || {},
-          eventCounts: {
-            fire: payload.eventCounts?.fire || 0,
-            ice: payload.eventCounts?.ice || 0,
-            lightning: payload.eventCounts?.lightning || 0,
-            bomb: payload.eventCounts?.bomb || 0,
-            laser: payload.eventCounts?.laser || 0,
-            spikes: payload.eventCounts?.spikes || 0
-          }
+          eventCounts: nextEventCounts
         })
+      }
+    }
+
+    const onSessionPhaseChanged = (payload: any) => {
+      if (!mounted) return
+      if (payload?.phase === 'lobby' && joinCode) {
+        router.push(`/party/${joinCode}`)
       }
     }
 
     wsClient.on('partyState', onPartyState)
     wsClient.on('game-started', onGameStarted)
     wsClient.on('game-update', onGameUpdate)
+    wsClient.on('session-phase-changed', onSessionPhaseChanged)
 
     return () => {
       mounted = false
       wsClient.off('partyState', onPartyState)
       wsClient.off('game-started', onGameStarted)
       wsClient.off('game-update', onGameUpdate)
+      wsClient.off('session-phase-changed', onSessionPhaseChanged)
     }
-  }, [joinCode, playerType, router])
+  }, [isSolo, joinCode, router])
+
+  useEffect(() => {
+    if (!isSolo || !hasBegun || gameOverStats) {
+      if (soloSpawnTimeoutRef.current !== null) {
+        window.clearTimeout(soloSpawnTimeoutRef.current)
+        soloSpawnTimeoutRef.current = null
+      }
+      return
+    }
+
+    if (soloStartedAtRef.current === null) {
+      soloStartedAtRef.current = Date.now()
+    }
+
+    const scheduleNextSpawn = () => {
+      if (soloStartedAtRef.current === null) return
+
+      const elapsed = Date.now() - soloStartedAtRef.current
+      setGameElapsedMs(elapsed)
+
+      const { intervalMs, eventsPerSpawn } = calculateSoloSpawnSettings(elapsed)
+
+      soloSpawnTimeoutRef.current = window.setTimeout(() => {
+        if (soloStartedAtRef.current === null) return
+
+        const nextElapsed = Date.now() - soloStartedAtRef.current
+        setGameElapsedMs(nextElapsed)
+
+        const events = createSoloEvents(eventsPerSpawn)
+
+        events.forEach((soloEvent) => {
+          const event: LiveEvent = {
+            id: soloEvent.id,
+            type: soloEvent.type,
+            position: soloEvent.position
+          }
+
+          setWarningEvents((prev) => [...prev, event])
+
+          setEventCounts((prev) => ({
+            ...prev,
+            [event.type]: (prev[event.type] || 0) + 1
+          }))
+
+          const impactedPositions = getEventImpactPositions(event)
+          const impactedKeys = new Set(impactedPositions.map((position) => cellKey(position.x, position.y)))
+          const warningDurationMs = getWarningDurationMs(nextElapsed)
+
+          const actionTimeout = window.setTimeout(() => {
+            setWarningEvents((prev) => prev.filter((evt) => evt.id !== event.id))
+            setFlashEvents((prev) => [...prev, { id: event.id, type: event.type, positions: impactedPositions }])
+
+            const clearFlashTimeout = window.setTimeout(() => {
+              setFlashEvents((prev) => prev.filter((flash) => flash.id !== event.id))
+            }, ACTION_FLASH_MS)
+            timeoutRefs.current.push(clearFlashTimeout)
+
+            const snapshot = playerStatesRef.current
+            const nextStates = { ...snapshot }
+            const killedIds: string[] = []
+
+            Object.entries(snapshot).forEach(([pid, state]) => {
+              if (state.alive && impactedKeys.has(cellKey(state.x, state.y))) {
+                nextStates[pid] = { ...state, alive: false }
+                killedIds.push(pid)
+              }
+            })
+
+            if (killedIds.length > 0) {
+              setPlayerStates(nextStates)
+
+              setPlayerDeaths((prev) => {
+                const nextDeaths = { ...prev }
+                killedIds.forEach((pid) => {
+                  nextDeaths[pid] = (nextDeaths[pid] || 0) + 1
+                })
+
+                if (checkSoloGameOver(nextStates)) {
+                  const elapsedMs = soloStartedAtRef.current ? Date.now() - soloStartedAtRef.current : gameElapsedMsRef.current
+                  setGameElapsedMs(elapsedMs)
+                  setGameOverStats({
+                    elapsedMs,
+                    playerDeaths: nextDeaths,
+                    wordsTyped: wordsTypedRef.current,
+                    eventCounts: eventCountsRef.current
+                  })
+                }
+
+                return nextDeaths
+              })
+            }
+          }, warningDurationMs)
+
+          timeoutRefs.current.push(actionTimeout)
+        })
+
+        if (!gameOverStats) {
+          scheduleNextSpawn()
+        }
+      }, intervalMs)
+    }
+
+    scheduleNextSpawn()
+
+    return () => {
+      if (soloSpawnTimeoutRef.current !== null) {
+        window.clearTimeout(soloSpawnTimeoutRef.current)
+        soloSpawnTimeoutRef.current = null
+      }
+    }
+  }, [gameOverStats, hasBegun, isSolo])
 
   const indexedPlayers = useMemo(
     () => players.map((player, index) => ({ player, index })),
@@ -555,7 +716,7 @@ export default function TypeFlightPage() {
       [currentPlayerId]: (prev[currentPlayerId] || 0) + 1
     }))
 
-    if (playerType !== 'solo') {
+    if (!isSolo) {
       sendTypeFlightMove(direction)
     }
   }
@@ -605,7 +766,7 @@ export default function TypeFlightPage() {
       }
     })
 
-    if (playerType !== 'solo') {
+    if (!isSolo) {
       sendTypeFlightPlayerRevived(revivePosition)
     }
 
@@ -629,7 +790,7 @@ export default function TypeFlightPage() {
       }))
     }
 
-    if (playerType !== 'solo') {
+    if (!isSolo) {
       sendTypeFlightReviveWordTyped()
     }
 
@@ -643,30 +804,64 @@ export default function TypeFlightPage() {
     setInput('')
   }
 
+  const resetSoloTypeFlightState = () => {
+    const soloId = currentPlayerId || playerData?.id || 'solo'
+    const soloPlayer: Player = {
+      id: soloId,
+      alias: playerData?.alias || 'Player',
+      icon: playerData?.icon || 'wizard',
+      color: playerData?.color || '#9aa0a6',
+      font: playerData?.font
+    }
+
+    setPlayers([soloPlayer])
+    setCurrentPlayerId(soloId)
+    setPlayerStates(buildSoloPlayerMap([soloId]))
+    setPlayerDeaths({ [soloId]: 0 })
+    setWordsTyped({ [soloId]: 0 })
+    setEventCounts(createEmptyEventCounts())
+    setWarningEvents([])
+    setFlashEvents([])
+    setReviveWords([])
+    setReviveProgress(0)
+    setReviveDeathCount(0)
+    setGameElapsedMs(0)
+    setGameOverStats(null)
+    setDirectionWords(createDirectionWords())
+    setInput('')
+    soloStartedAtRef.current = Date.now()
+  }
+
   const handleExit = () => {
-    if (playerType === 'solo') {
+    if (isSolo) {
       router.push('/games')
       return
     }
 
     if (playerType === 'host') {
-      wsClient.send('start-game', { code: joinCode, gameName: 'games' })
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'games' }).catch((err) => {
+        console.error('Failed to return party to games page:', err)
+      })
     }
   }
 
   const handleReplay = () => {
-    if (playerType === 'solo') {
-      window.location.reload()
+    if (isSolo) {
+      resetSoloTypeFlightState()
+      setHasBegun(true)
       return
     }
 
     if (playerType === 'host') {
-      wsClient.send('start-game', { code: joinCode, gameName: 'typeflight' })
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'typeflight' }).catch((err) => {
+        console.error('Failed to replay TypeFlight:', err)
+      })
     }
   }
 
   const handleBegin = () => {
-    if (playerType === 'solo') {
+    if (isSolo) {
+      resetSoloTypeFlightState()
       setHasBegun(true)
       return
     }
@@ -681,7 +876,7 @@ export default function TypeFlightPage() {
       <GameInstructionsOverlay
         title="TypeFlight"
         rules={TYPEFLIGHT_RULES}
-        canBegin={playerType === 'host' || playerType === 'solo'}
+        canBegin={playerType === 'host' || isSolo}
         onBegin={handleBegin}
       />
     )

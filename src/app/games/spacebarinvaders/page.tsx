@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation'
 import { usePlayerType } from '../../../context/PlayerTypeContext'
 import wsClient from '../../../websocket/wsClient'
 import GameInstructionsOverlay from '../../../components/GameInstructionsOverlay'
+import { isSoloPlayer } from '../../../localGames/soloMode'
+import {
+  applySoloEarthHit,
+  applySoloWordDestroyed,
+  createSoloSpaceBarState,
+  startNextSoloWave
+} from '../../../localGames/spacebarInvadersSolo'
+import { preloadImages, spaceBarInvadersAssets } from '../../../utils/imagePreloader'
 import GameView from './GameView'
 import GameOverView from './GameOverView'
 
@@ -22,6 +30,8 @@ interface GameState {
   earthHits: number
   dangers: Danger[]
   gameOver: boolean
+  waveTransitioning?: boolean
+  gameStartTime?: number
   survivalTime?: number
   finalWave?: number
   playerStats?: Record<string, number>
@@ -46,6 +56,7 @@ const SPACEBAR_INVADERS_RULES = [
 export default function SpaceBarInvadersPage() {
   const router = useRouter()
   const { playerType, joinCode, playerData } = usePlayerType()
+  const isSolo = isSoloPlayer(playerType)
   const [gameState, setGameState] = useState<GameState>({
     waveNumber: 1,
     earthHits: 0,
@@ -59,13 +70,27 @@ export default function SpaceBarInvadersPage() {
   const [currentPlayerId, setCurrentPlayerId] = useState<string>('')
   const [hasBegun, setHasBegun] = useState(false)
 
+  // Preload game assets
+  useEffect(() => {
+    preloadImages(spaceBarInvadersAssets).catch(err => {
+      console.warn('Image preload partial failure:', err)
+    })
+  }, [])
+
   // Initialize game state and listen for updates
   useEffect(() => {
-    if (playerType === 'solo') {
+    if (isSolo) {
       // Solo mode - set up local player
       if (playerData) {
-        setCurrentPlayerId(playerData.id)
-        setPlayers([playerData])
+        const soloPlayer = {
+          id: playerData.id || 'solo',
+          alias: playerData.alias || 'Player',
+          icon: playerData.icon || 'wizard',
+          color: playerData.color || '#667eea',
+          font: playerData.font || 'inherit'
+        }
+        setCurrentPlayerId(soloPlayer.id)
+        setPlayers([soloPlayer])
       }
       return
     }
@@ -209,26 +234,46 @@ export default function SpaceBarInvadersPage() {
       }
     }
 
+    const onSessionPhaseChanged = (payload: any) => {
+      if (!mounted) return
+      if (payload?.phase === 'lobby' && joinCode) {
+        router.push(`/party/${joinCode}`)
+      }
+    }
+
     wsClient.on('game-started', onGameStarted)
     wsClient.on('game-update', onGameUpdate)
+    wsClient.on('session-phase-changed', onSessionPhaseChanged)
 
     return () => {
       mounted = false
       wsClient.off('game-started', onGameStarted)
       wsClient.off('game-update', onGameUpdate)
+      wsClient.off('session-phase-changed', onSessionPhaseChanged)
     }
-  }, [playerType, joinCode, playerData])
+  }, [isSolo, joinCode, playerData, playerType, router])
+
+  useEffect(() => {
+    if (!isSolo || !hasBegun || gameState.gameOver || !gameState.waveTransitioning) return
+
+    const timeout = window.setTimeout(() => {
+      setGameState((prev) => {
+        if (!prev.waveTransitioning || prev.gameOver) return prev
+        return startNextSoloWave(prev, 1)
+      })
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(timeout)
+    }
+  }, [gameState.gameOver, gameState.waveTransitioning, hasBegun, isSolo])
 
   // Function to notify server when a word is successfully typed
   const onWordDestroyed = (word: string) => {
-    if (playerType === 'solo') {
-      // Solo mode - handle locally (would need to implement solo game logic)
+    if (isSolo) {
+      // Solo mode - handle fully local state updates.
       console.log('Solo mode: Word destroyed:', word)
-      setGameState(prev => ({
-        ...prev,
-        dangers: prev.dangers.filter(d => d.word !== word)
-      }))
-      // TODO: Check if wave complete and generate new wave locally
+      setGameState((prev) => applySoloWordDestroyed(prev, currentPlayerId || 'solo', word))
     } else if (playerType === 'host' || playerType === 'join') {
       // Multiplayer - send to server
       console.log('Sending word-destroyed event:', word)
@@ -241,15 +286,10 @@ export default function SpaceBarInvadersPage() {
 
   // Function to notify server when earth is hit (only host/solo should call this)
   const onEarthHit = (dangerId: string) => {
-    if (playerType === 'solo') {
+    if (isSolo) {
       // Solo mode - handle locally
       console.log('Solo mode: Earth hit by danger:', dangerId)
-      setGameState(prev => ({
-        ...prev,
-        earthHits: prev.earthHits + 1,
-        dangers: prev.dangers.filter(d => d.id !== dangerId),
-        gameOver: prev.earthHits + 1 >= 3
-      }))
+      setGameState((prev) => applySoloEarthHit(prev, dangerId))
     } else if (playerType === 'host') {
       // Only host sends earth-hit events in multiplayer to avoid duplicates
       console.log('Host sending earth-hit event:', dangerId)
@@ -265,12 +305,16 @@ export default function SpaceBarInvadersPage() {
   const startGame = () => {
     if (playerType === 'host' && joinCode) {
       console.log('Host starting SpaceBarInvaders game')
-      wsClient.send('start-game', { code: joinCode, gameName: 'spacebarinvaders' })
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'spacebarinvaders' }).catch((err) => {
+        console.error('Failed to start SpaceBarInvaders:', err)
+      })
     }
   }
 
   const handleBegin = () => {
-    if (playerType === 'solo') {
+    if (isSolo) {
+      const soloId = currentPlayerId || playerData?.id || 'solo'
+      setGameState(createSoloSpaceBarState(soloId))
       setHasBegun(true)
       return
     }
@@ -281,27 +325,33 @@ export default function SpaceBarInvadersPage() {
   // Handle replay - restart the game
   const handleReplay = () => {
     console.log('handleReplay called, playerType:', playerType, 'joinCode:', joinCode)
-    if (playerType === 'solo') {
+    if (isSolo) {
       // Reset local state for solo player
-      window.location.reload()
+      const soloId = currentPlayerId || playerData?.id || 'solo'
+      setGameState(createSoloSpaceBarState(soloId))
+      setHasBegun(true)
     } else if (playerType === 'host') {
       // Host - restart SpaceBarInvaders game
       console.log('Sending start-game for spacebarinvaders')
-      wsClient.send('start-game', { code: joinCode, gameName: 'spacebarinvaders' })
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'spacebarinvaders' }).catch((err) => {
+        console.error('Failed to replay SpaceBarInvaders:', err)
+      })
     }
   }
 
   // Handle exit - go back to game selection
   const handleExit = () => {
     console.log('handleExit called, playerType:', playerType, 'joinCode:', joinCode)
-    if (playerType === 'solo') {
+    if (isSolo) {
       // Solo player - navigate back to games
       console.log('Navigating to /games')
       router.push('/games')
     } else if (playerType === 'host') {
-      // Host - go back to game selection
-      console.log('Sending start-game for games')
-      wsClient.send('start-game', { code: joinCode, gameName: 'games' })
+      // Host - send everyone back to game selection
+      console.log('Sending start-game for games page')
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'games' }).catch((err) => {
+        console.error('Failed to return party to games page:', err)
+      })
     }
   }
 
@@ -310,7 +360,7 @@ export default function SpaceBarInvadersPage() {
       <GameInstructionsOverlay
         title="SpaceBarInvaders"
         rules={SPACEBAR_INVADERS_RULES}
-        canBegin={playerType === 'host' || playerType === 'solo'}
+        canBegin={playerType === 'host' || isSolo}
         onBegin={handleBegin}
       />
     )

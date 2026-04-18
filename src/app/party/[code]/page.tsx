@@ -18,7 +18,7 @@ interface PlayerRow {
 
 export default function PartyPage() {
   const router = useRouter()
-  const { playerType, joinCode: ctxJoinCode, setJoinCode, playerData } = usePlayerType()
+  const { playerType, setJoinCode, playerData } = usePlayerType()
   const params = useParams()
   const code = params.code as string
 
@@ -26,13 +26,7 @@ export default function PartyPage() {
   const [qrDataUrl, setQrDataUrl] = useState<string>('')
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [gameStarted, setGameStarted] = useState<boolean>(false)
-
-  // if solo skip to games
-  useEffect(() => {
-    if (playerType === 'solo') {
-      router.push('/games')
-    }
-  }, [playerType, router])
+  const [hostPlayerId, setHostPlayerId] = useState<string | null>(null)
 
   // on mount, use code from params, set in context
   useEffect(() => {
@@ -47,18 +41,90 @@ export default function PartyPage() {
     QRCode.toDataURL(fullUrl).then(setQrDataUrl).catch(console.error)
   }, [joinCode])
 
+  // Keep backend phase aligned with host location when host is on party page.
+  useEffect(() => {
+    if (!joinCode || playerType !== 'host') return
+    void wsClient.sendWithRetry('host-return-to-lobby', { code: joinCode }).catch((err) => {
+      console.error('Failed to ensure lobby state from party page:', err)
+    })
+  }, [joinCode, playerType])
+
   // join the session and subscribe to socket events
   useEffect(() => {
     if (!joinCode) return
     let mounted = true
+    let rejoinAttempt = 0
+    let joinFallbackAttempted = false
+    let rejoinRecovered = false
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null
 
     const player = playerData
+    if (!player?.id) {
+      // No multiplayer identity available; never auto-join as a fallback guest.
+      router.push('/player/join')
+      return
+    }
+
+    const retryDelays = [0, 1000, 2000, 4000, 8000]
+
+    const payload = {
+      joinCode,
+      playerId: player.id,
+      alias: player.alias || 'Player',
+      color: player.color || '#888',
+      font: player.font || 'Calibri',
+      icon: player.icon || 'wizard'
+    }
 
     const onJoinSuccess = (payload: any) => {
       if (!mounted) return
+      rejoinRecovered = true
       setPlayers(payload.players || [])
       setGameStarted(Boolean(payload.gameState?.started))
+      setHostPlayerId(payload?.session?.hostPlayerId || null)
       console.log('Join success! Player ID:', player?.id)
+    }
+
+    const onRejoinSuccess = (payload: any) => {
+      if (!mounted) return
+      rejoinRecovered = true
+      setPlayers(payload?.session?.players || [])
+      setGameStarted(Boolean(payload?.session?.started))
+      setHostPlayerId(payload?.session?.hostPlayerId || null)
+      console.log('Rejoin success! Player ID:', player?.id)
+    }
+
+    const attemptRejoin = () => {
+      if (!mounted || rejoinRecovered || !payload.playerId) return
+      if (rejoinAttempt >= retryDelays.length) return
+
+      const delay = retryDelays[rejoinAttempt]
+      rejoinAttempt += 1
+      retryTimeout = setTimeout(() => {
+        if (!mounted || rejoinRecovered) return
+        void wsClient.sendWithRetry('rejoin-session', {
+          joinCode: payload.joinCode,
+          playerId: payload.playerId
+        }, {
+          maxRetries: 0,
+          timeoutMs: 3500
+        }).catch(() => {
+          // Errors are handled via rejoin-failed events and outer retry sequence.
+        })
+      }, delay)
+    }
+
+    const onRejoinFailed = (rejoinPayload: any) => {
+      if (!mounted || rejoinRecovered) return
+
+      // If there is no previous server-side player state, fall back to normal join once.
+      if (rejoinPayload?.reason === 'player-not-found' && !joinFallbackAttempted) {
+        joinFallbackAttempted = true
+        wsClient.send('join-session', payload)
+        return
+      }
+
+      attemptRejoin()
     }
 
     const onPlayerJoined = (payload: any) => {
@@ -77,6 +143,15 @@ export default function PartyPage() {
       setGameStarted(Boolean(payload.gameStarted))
     }
 
+    const onSessionSnapshot = (snapshotPayload: any) => {
+      if (!mounted) return
+      const session = snapshotPayload?.session
+      if (!session) return
+      setPlayers(session.players || [])
+      setGameStarted(Boolean(session.started))
+      setHostPlayerId(session.hostPlayerId || null)
+    }
+
     const onGameStarted = (payload: any) => {
       if (!mounted) return
       // Navigate to games page when game is started
@@ -89,12 +164,21 @@ export default function PartyPage() {
       router.push('/player/join')
     }
 
+    const onSocketConnected = () => {
+      if (!mounted || rejoinRecovered) return
+      attemptRejoin()
+    }
+
     wsClient.on('join-success', onJoinSuccess)
+    wsClient.on('rejoin-success', onRejoinSuccess)
+    wsClient.on('rejoin-failed', onRejoinFailed)
     wsClient.on('player-joined', onPlayerJoined)
     wsClient.on('player-left', onPlayerLeft)
     wsClient.on('partyState', onPartyState)
+    wsClient.on('session-snapshot', onSessionSnapshot)
     wsClient.on('game-started', onGameStarted)
     wsClient.on('join-error', onJoinError)
+    wsClient.on('connect', onSocketConnected)
 
     // attempt to fetch current session info (optional) - useful for viewing empty parties
     wsClient.request('getParty', { code: joinCode }).then((res) => {
@@ -102,16 +186,6 @@ export default function PartyPage() {
       setPlayers(res?.players || [])
       setGameStarted(Boolean(res?.gameState?.started))
     }).catch(() => {})
-
-    // emit join-session using stored player customization (host or join flow saved earlier)
-    const payload = {
-      joinCode,
-      playerId: player?.id || 'guest', // Include client-generated ID
-      alias: player?.alias || 'Guest',
-      color: player?.color || '#888',
-      font: player?.font || 'Calibri',
-      icon: player?.icon || 'wizard'
-    }
 
     // Before emitting join-session, ensure the session exists on the server.
     const ensureSessionExists = async (code: string, retries = 12, delay = 250) => {
@@ -136,19 +210,34 @@ export default function PartyPage() {
         router.push('/player/host')
         return
       }
-      wsClient.send('join-session', payload)
+
+      // First try to recover a prior player session, then fall back to normal join.
+      attemptRejoin()
+
+      // Always attempt one explicit join fallback for known player identity.
+      if (!joinFallbackAttempted) {
+        joinFallbackAttempted = true
+        wsClient.send('join-session', payload)
+      }
     })()
 
     return () => {
       mounted = false
+      if (retryTimeout) {
+        clearTimeout(retryTimeout)
+      }
       wsClient.off('join-success', onJoinSuccess)
+      wsClient.off('rejoin-success', onRejoinSuccess)
+      wsClient.off('rejoin-failed', onRejoinFailed)
       wsClient.off('player-joined', onPlayerJoined)
       wsClient.off('player-left', onPlayerLeft)
       wsClient.off('partyState', onPartyState)
+      wsClient.off('session-snapshot', onSessionSnapshot)
       wsClient.off('game-started', onGameStarted)
       wsClient.off('join-error', onJoinError)
+      wsClient.off('connect', onSocketConnected)
     }
-  }, [joinCode, router])
+  }, [joinCode, router, playerData])
 
   const [codeBurst, setCodeBurst] = useState(false)
   const [urlBurst, setUrlBurst] = useState(false)
@@ -176,7 +265,19 @@ export default function PartyPage() {
 
   const handleStart = async () => {
     if (!joinCode) return
-    wsClient.send('start-game', { code: joinCode, gameName: 'games' })
+    void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'games' }).catch((err) => {
+      console.error('Failed to start games screen:', err)
+    })
+  }
+
+  const handleRemovePlayer = (targetPlayerId: string) => {
+    if (playerType !== 'host' || !joinCode) return
+    void wsClient.sendWithRetry('host-kick-player', {
+      code: joinCode,
+      targetPlayerId
+    }).catch((err) => {
+      console.error('Failed to remove player:', err)
+    })
   }
 
   return (
@@ -225,6 +326,7 @@ export default function PartyPage() {
             <tr>
               <th>Icon</th>
               <th>Alias</th>
+              {playerType === 'host' && <th>Action</th>}
             </tr>
           </thead>
           <tbody>
@@ -236,6 +338,20 @@ export default function PartyPage() {
                   </div>
                 </td>
                 <td style={{ fontFamily: p.font || 'inherit' }}>{p.alias}</td>
+                {playerType === 'host' && (
+                  <td>
+                    {p.id !== hostPlayerId ? (
+                      <button
+                        className={styles.removeButton}
+                        onClick={() => handleRemovePlayer(p.id)}
+                      >
+                        Remove
+                      </button>
+                    ) : (
+                      <span className={styles.hostBadge}>Host</span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

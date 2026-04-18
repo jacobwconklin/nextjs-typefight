@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation'
 import { usePlayerType } from '../../../context/PlayerTypeContext'
 import wsClient from '../../../websocket/wsClient'
 import GameInstructionsOverlay from '../../../components/GameInstructionsOverlay'
+import { isSoloPlayer } from '../../../localGames/soloMode'
+import {
+  completeSoloQuickKeys,
+  createSoloQuickKeysState,
+  startSoloQuickKeysText,
+  updateSoloQuickKeysWord
+} from '../../../localGames/quickkeysSolo'
 import TextSelection from './TextSelection'
 import GameView from './GameView'
 import GameOverView from './GameOverView'
@@ -45,14 +52,11 @@ const QUICKKEYS_RULES = [
 export default function QuickKeysPage() {
   const router = useRouter()
   const { playerType, joinCode, playerData } = usePlayerType()
+  const isSolo = isSoloPlayer(playerType)
   const [texts, setTexts] = useState<TypingText[]>([])
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [gameState, setGameState] = useState<GameState>({
-    finished: false,
-    textName: null,
-    playerPositions: {}
-  })
+  const [gameState, setGameState] = useState<GameState>(createSoloQuickKeysState())
   const [players, setPlayers] = useState<Player[]>([])
   const [currentPlayerId, setCurrentPlayerId] = useState<string>('')
   const [hasBegun, setHasBegun] = useState(false)
@@ -80,7 +84,7 @@ export default function QuickKeysPage() {
 
   // Listen for game state updates (for host and join players)
   useEffect(() => {
-    if (playerType === 'solo') return // Solo players don't need websocket
+    if (isSolo) return // Solo players don't need websocket
 
     let mounted = true
 
@@ -210,17 +214,26 @@ export default function QuickKeysPage() {
       }
     }
 
+    const onSessionPhaseChanged = (payload: any) => {
+      if (!mounted) return
+      if (payload?.phase === 'lobby' && joinCode) {
+        router.push(`/party/${joinCode}`)
+      }
+    }
+
     wsClient.on('game-update', onGameUpdate)
     wsClient.on('game-started', onGameStarted)
     wsClient.on('partyState', onPartyState)
+    wsClient.on('session-phase-changed', onSessionPhaseChanged)
 
     return () => {
       mounted = false
       wsClient.off('game-update', onGameUpdate)
       wsClient.off('game-started', onGameStarted)
       wsClient.off('partyState', onPartyState)
+      wsClient.off('session-phase-changed', onSessionPhaseChanged)
     }
-  }, [playerType, joinCode])
+  }, [isSolo, joinCode, router])
 
   // Get current player ID from context
   useEffect(() => {
@@ -229,7 +242,7 @@ export default function QuickKeysPage() {
       console.log('Current player loaded from context:', playerData)
       
       // For solo players, populate the players array
-      if (playerType === 'solo') {
+      if (isSolo) {
         setPlayers([{
           id: playerData.id || 'solo',
           alias: playerData.alias || 'Player',
@@ -240,7 +253,7 @@ export default function QuickKeysPage() {
         console.log('Solo player setup complete')
       }
     }
-  }, [playerType, playerData])
+  }, [isSolo, playerData])
 
   // Determine which view to show
   const showTextSelect = !gameState.textName
@@ -279,53 +292,32 @@ export default function QuickKeysPage() {
           setCurrentWordIndex(newWordIndex)
 
           // Send update for word completion
-          if (playerType === 'host' || playerType === 'join') {
+          if (!isSolo) {
             console.log('Sending word-completed update:', { type: 'word-completed', index: newWordIndex, errors: errors })
             wsClient.send('update-game', {
               type: 'word-completed',
               index: newWordIndex,
               errors: errors
             })
-          } else if (playerType === 'solo') {
+          } else {
             // Solo player - update local state for progress bar
             console.log('Solo player word completed:', newWordIndex)
-            setGameState(prev => ({
-              ...prev,
-              playerPositions: {
-                ...prev.playerPositions,
-                [currentPlayerId]: {
-                  ...prev.playerPositions[currentPlayerId],
-                  index: newWordIndex,
-                  errors: errors
-                }
-              }
-            }))
+            setGameState(prev => updateSoloQuickKeysWord(prev, currentPlayerId, newWordIndex, errors))
           }
 
           // Check if text is complete
           if (newCharIndex >= allText.length) {
             const timeTaken = Date.now() - (startTime || Date.now())
             
-            if (playerType === 'host' || playerType === 'join') {
+            if (!isSolo) {
               wsClient.send('update-game', {
                 type: 'text-completed',
                 time: timeTaken,
                 errors: errors
               })
-            } else if (playerType === 'solo') {
+            } else {
               // Solo player - update local state
-              setGameState(prev => ({
-                ...prev,
-                finished: true,
-                playerPositions: {
-                  ...prev.playerPositions,
-                  [currentPlayerId]: {
-                    ...prev.playerPositions[currentPlayerId],
-                    time: timeTaken,
-                    errors: errors
-                  }
-                }
-              }))
+              setGameState(prev => completeSoloQuickKeys(prev, currentPlayerId, timeTaken, errors))
             }
           }
         }
@@ -340,28 +332,18 @@ export default function QuickKeysPage() {
 
     window.addEventListener('keypress', handleKeyPress)
     return () => window.removeEventListener('keypress', handleKeyPress)
-  }, [showGame, gameState.textName, texts, currentCharIndex, currentWordIndex, errors, startTime, playerType, currentPlayerId])
+  }, [showGame, gameState.textName, texts, currentCharIndex, currentWordIndex, errors, startTime, isSolo, currentPlayerId])
 
   const handleSelectText = (textId: string) => {
     // Only host and solo players can select
-    if (playerType !== 'host' && playerType !== 'solo') return
+    if (playerType !== 'host' && !isSolo) return
 
     setSelectedTextId(textId)
     console.log('Text selected:', textId, 'playerType:', playerType)
 
-    if (playerType === 'solo') {
+    if (isSolo) {
       // Solo player - just proceed locally (no websocket needed)
-      setGameState(prev => ({
-        ...prev,
-        textName: textId,
-        playerPositions: {
-          [currentPlayerId]: {
-            index: 0,
-            time: null,
-            errors: 0
-          }
-        }
-      }))
+      setGameState(prev => startSoloQuickKeysText(prev, currentPlayerId, textId))
       console.log('Solo game state initialized with player:', currentPlayerId)
       
       // Start timer for solo player
@@ -377,26 +359,24 @@ export default function QuickKeysPage() {
   }
 
   const handleBegin = () => {
-    if (playerType === 'solo') {
+    if (isSolo) {
       setHasBegun(true)
       return
     }
 
     if (playerType === 'host' && joinCode) {
-      wsClient.send('start-game', { code: joinCode, gameName: 'quickkeys' })
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'quickkeys' }).catch((err) => {
+        console.error('Failed to begin QuickKeys:', err)
+      })
     }
   }
 
   const handleReplay = () => {
     console.log('Replay clicked, playerType:', playerType)
     
-    if (playerType === 'solo') {
+    if (isSolo) {
       // Solo player - reset local state
-      setGameState({
-        finished: false,
-        textName: null,
-        playerPositions: {}
-      })
+      setGameState(createSoloQuickKeysState())
       setCurrentCharIndex(0)
       setCurrentWordIndex(0)
       setErrors(0)
@@ -406,20 +386,24 @@ export default function QuickKeysPage() {
     } else if (playerType === 'host') {
       // Host - restart the QuickKeys game
       console.log('Host restarting QuickKeys game')
-      wsClient.send('start-game', { code: joinCode, gameName: 'quickkeys' })
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'quickkeys' }).catch((err) => {
+        console.error('Failed to replay QuickKeys:', err)
+      })
     }
   }
 
   const handleExit = () => {
     console.log('Exit clicked, playerType:', playerType)
     
-    if (playerType === 'solo') {
+    if (isSolo) {
       // Solo player - navigate back to games
       router.push('/games')
     } else if (playerType === 'host') {
-      // Host - go back to game selection
-      console.log('Host exiting to game selection')
-      wsClient.send('start-game', { code: joinCode, gameName: 'games' })
+      // Host - send everyone back to game selection
+      console.log('Host returning party to games page')
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'games' }).catch((err) => {
+        console.error('Failed to return party to games page:', err)
+      })
     }
   }
 
@@ -434,7 +418,7 @@ export default function QuickKeysPage() {
       <GameInstructionsOverlay
         title="QuickKeys"
         rules={QUICKKEYS_RULES}
-        canBegin={playerType === 'host' || playerType === 'solo'}
+        canBegin={playerType === 'host' || isSolo}
         onBegin={handleBegin}
       />
     )

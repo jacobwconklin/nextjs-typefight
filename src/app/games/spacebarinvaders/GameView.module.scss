@@ -31,6 +31,13 @@
   }
 }
 
+.earthImage {
+  display: block;
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+}
+
 .earthCollision {
   position: absolute;
   top: 50%;

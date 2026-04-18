@@ -1,6 +1,7 @@
 "use client"
 
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import wsClient from '../websocket/wsClient'
 
 export type PlayerType = 'host' | 'join' | 'solo'
 
@@ -13,6 +14,7 @@ export interface PlayerData {
 }
 
 interface PlayerTypeContextValue {
+  isHydrated: boolean
   playerType: PlayerType
   setPlayerType: (t: PlayerType) => void
   joinCode: string | null
@@ -23,12 +25,73 @@ interface PlayerTypeContextValue {
 
 const PlayerTypeContext = createContext<PlayerTypeContextValue | undefined>(undefined)
 
+const STORAGE_KEY = 'typefight.player-context.v1'
+
+interface StoredPlayerContext {
+  playerType: PlayerType
+  joinCode: string | null
+  playerData: PlayerData | null
+}
+
 export function PlayerTypeProvider({ children }: { children: ReactNode }) {
   const [playerType, setPlayerType] = useState<PlayerType>("solo")
   const [joinCode, setJoinCode] = useState<string | null>(null)
   const [playerData, setPlayerData] = useState<PlayerData | null>(null)
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  // Restore multiplayer identity after accidental refreshes.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (!raw) return
+      const stored = JSON.parse(raw) as StoredPlayerContext
+      if (stored.playerType) setPlayerType(stored.playerType)
+      if (typeof stored.joinCode !== 'undefined') setJoinCode(stored.joinCode)
+      if (stored.playerData) setPlayerData(stored.playerData)
+    } catch (err) {
+      console.error('Failed to restore player context from localStorage', err)
+    } finally {
+      setIsHydrated(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isHydrated) return
+    try {
+      const payload: StoredPlayerContext = {
+        playerType,
+        joinCode,
+        playerData
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+    } catch (err) {
+      console.error('Failed to persist player context to localStorage', err)
+    }
+  }, [isHydrated, playerType, joinCode, playerData])
+
+  // Handle host moderation kick globally from any UI route.
+  useEffect(() => {
+    const onPlayerKicked = () => {
+      alert('You were kicked by the host.')
+      setPlayerType('solo')
+      setJoinCode(null)
+      setPlayerData(null)
+      try {
+        localStorage.removeItem(STORAGE_KEY)
+      } catch (err) {
+        console.error('Failed to clear player context from localStorage', err)
+      }
+      window.location.href = '/'
+    }
+
+    wsClient.on('player-kicked', onPlayerKicked)
+    return () => {
+      wsClient.off('player-kicked', onPlayerKicked)
+    }
+  }, [])
+
   return (
-    <PlayerTypeContext.Provider value={{ playerType, setPlayerType, joinCode, setJoinCode, playerData, setPlayerData }}>
+    <PlayerTypeContext.Provider value={{ isHydrated, playerType, setPlayerType, joinCode, setJoinCode, playerData, setPlayerData }}>
       {children}
     </PlayerTypeContext.Provider>
   )

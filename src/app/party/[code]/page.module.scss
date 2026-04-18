@@ -154,6 +154,32 @@
   border-radius: 50%; /* ensure image is circular */
   display: block;
 }
+
+.removeButton {
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid #652121;
+  background: #9a2e2e;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.removeButton:hover {
+  background: #b73939;
+}
+
+.hostBadge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.22);
+  color: #e9fce7;
+  background: rgba(52, 150, 99, 0.25);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .hostControls {
   text-align: center;
   margin-top: 1.5rem;

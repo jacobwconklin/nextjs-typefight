@@ -13,14 +13,15 @@ type GameCard = {
   color: string
   disabled?: boolean
   mediaLabel?: string
+  image?: string
 }
 
 const GAMES: GameCard[] = [
-  { id: "quickkeys", title: "QuickKeys", color: "#ff6b6b" },
-  { id: "spacebarinvaders", title: "SpaceBarInvaders", color: "#4d96ff" },
-  { id: "textsplosion", title: "TextSplosion", color: "#ffb84d" },
-  { id: "typeflight", title: "TypeFlight", color: "#8b6bff" },
-  { id: "typekwando", title: "Typekwando", color: "#34d399" },
+  { id: "quickkeys", title: "QuickKeys", color: "#ff6b6b", image: "quickkeys-ai-slop.png" },
+  { id: "spacebarinvaders", title: "SpaceBarInvaders", color: "#4d96ff", image: "spacebarinvaders-ai-slop.png" },
+  { id: "textsplosion", title: "TextSplosion", color: "#ffb84d", image: "textsplosion-ai-slop.png" },
+  { id: "typeflight", title: "TypeFlight", color: "#8b6bff", image: "typeflight-ai-slop.png" },
+  { id: "typekwando", title: "Typekwando", color: "#34d399", image: "typekwando-ai-slop.png" },
 ]
 
 const WORD_WAR_1: GameCard = {
@@ -29,6 +30,7 @@ const WORD_WAR_1: GameCard = {
   color: "#888",
   disabled: true,
   mediaLabel: "Coming Soon",
+  image: "wordwar1-ai-slop.png",
 }
 
 const MULTIPLAYER_ONLY_GAME_IDS = new Set(["textsplosion", "typekwando"])
@@ -81,9 +83,17 @@ export default function GamesPage() {
       }
     }
 
+    const onSessionPhaseChanged = (payload: any) => {
+      if (!mounted) return
+      if (payload?.phase === 'lobby' && joinCode) {
+        router.push(`/party/${joinCode}`)
+      }
+    }
+
     wsClient.on('partyState', onPartyState)
     wsClient.on('game-started', onGameStarted)
     wsClient.on('game-update', onGameUpdate)
+    wsClient.on('session-phase-changed', onSessionPhaseChanged)
 
     // Fetch initial game status to get current votes
     if (joinCode) {
@@ -111,8 +121,16 @@ export default function GamesPage() {
       wsClient.off('partyState', onPartyState)
       wsClient.off('game-started', onGameStarted)
       wsClient.off('game-update', onGameUpdate)
+      wsClient.off('session-phase-changed', onSessionPhaseChanged)
     }
   }, [playerType, joinCode, router])
+
+  const handleReturnToParty = () => {
+    if (playerType !== 'host' || !joinCode) return
+    void wsClient.sendWithRetry('host-return-to-lobby', { code: joinCode }).catch((err) => {
+      console.error('Failed to return party to lobby:', err)
+    })
+  }
 
   const handleGameClick = (game: GameCard) => {
     if (isGameUnavailable(game)) {
@@ -126,7 +144,9 @@ export default function GamesPage() {
     } else if (playerType === 'host') {
       // Host - start the game via websocket
       console.log(`Host starting game ${gameId} in session ${joinCode}`)
-      wsClient.send('start-game', { code: joinCode, gameName: gameId })
+      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: gameId }).catch((err) => {
+        console.error('Failed to start game:', err)
+      })
     } else if (playerType === 'join') {
       // Join player - vote for the game
       console.log(`Join player voting for game ${gameId}`)
@@ -154,6 +174,11 @@ export default function GamesPage() {
         </div>
 
         <h1 className={styles.title}>Games</h1>
+        {playerType === 'host' && (
+          <button className={styles.returnToPartyButton} onClick={handleReturnToParty}>
+            Return To Party
+          </button>
+        )}
         <div className={styles.grid}>
           {games.map((g) => {
             const isMultiplayerOnly = MULTIPLAYER_ONLY_GAME_IDS.has(g.id)
@@ -171,6 +196,7 @@ export default function GamesPage() {
                 >
                   <div className={styles.cardInner}>
                     <div className={styles.cardMedia}>
+                      {g.image && <img src={`/icons/gamecards/${g.image}`} alt={g.title} className={styles.cardImage} />}
                       {showMultiplayerOnly && <span className={styles.cardMediaOverlay}>Multiplayer Only</span>}
                       {g.mediaLabel && <span className={styles.cardMediaLabel}>{g.mediaLabel}</span>}
                     </div>

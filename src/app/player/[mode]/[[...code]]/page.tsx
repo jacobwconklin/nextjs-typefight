@@ -150,6 +150,9 @@ export default function PlayerCustomizationPage() {
 
   const handleStart = async () => {
     console.log('Starting with:', customization)
+    // Explicitly set mode here so route transitions cannot observe a stale playerType.
+    setPlayerType(mode as PlayerType)
+
     if (mode === 'host') {
       // Generate 8-char join code via backend API
       const generatedCode = await wsClient.request('generateJoinCode', {})

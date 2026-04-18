@@ -35,7 +35,7 @@ After each watch phase, any players positioned on the outermost ring of the grid
 - [x] Apply block interaction logic so blocked attacks do not eliminate the defender.
 - [x] Mark eliminated players, remove them from future command resolution, and broadcast elimination updates.
 - [x] Implement end-of-turn ring encroachment: shift players inward from outer ring, blackout removed ring, clamp playable area.
-- [ ] Stop encroachment once the active board reaches 3x3.
+- [x] Stop encroachment once the active board reaches 3x3.
 - [x] Add win/draw detection after each watch phase (single survivor = winner, zero survivors = draw) and publish match result event.
 - [x] Build frontend Typekwando game page UI using TypeFlight board style, player icons, and sidebar typing input flow.
 - [x] Implement local typing-phase UX: own-command preview, timer display, validation feedback, and locked input after timeout.

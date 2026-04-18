@@ -55,6 +55,22 @@
   letter-spacing:1px;
 }
 
+.returnToPartyButton {
+  margin: 0 0 1.25rem 0;
+  padding: 0.65rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #1b3a2a;
+  color: #f1f5f1;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.returnToPartyButton:hover {
+  background: #235136;
+}
+
 .grid{
   width:100%;
   display:grid;
@@ -87,7 +103,6 @@
   transform-origin:center;
   transition:transform 240ms cubic-bezier(.2,.8,.2,1), box-shadow 240ms ease, border-color 240ms ease;
   transform:translateY(0);
-  animation:floaty 6s ease-in-out infinite;
 }
 
 .cardMedia{
@@ -97,6 +112,17 @@
   display:flex;
   align-items:center;
   justify-content:center;
+  overflow: hidden;
+}
+
+.cardImage{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  image-rendering: auto;
+  filter: contrast(1.02) saturate(1.05);
 }
 
 .cardMediaOverlay{
@@ -113,9 +139,15 @@
 }
 
 .cardMediaLabel{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   font-size:1.05rem;
   letter-spacing:0.06em;
-  color:#bdbdbd;
+  color:#f2f2f2;
+  background:rgba(0,0,0,0.4);
   z-index:2;
 }
 

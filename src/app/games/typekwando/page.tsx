@@ -40,6 +40,7 @@ type MovementWordMap = Record<DirectionalMovement, string>
 type ActionWordMap = Record<ActionType, string>
 
 const GRID_SIZE = 10
+const SYMMETRIC_RING_DEPTH = Math.floor((GRID_SIZE - 3) / 2)
 const PRE_SUBMIT_RESET_MS = 800
 
 const TYPEKWANDO_RULES = [
@@ -163,7 +164,7 @@ const getQueuedActionHighlights = (
   color: string,
   sourceId: string
 ): ActionHighlight[] => {
-  const min = ringDepth
+  const min = Math.min(ringDepth, SYMMETRIC_RING_DEPTH)
   const max = GRID_SIZE - 1 - ringDepth
   const position = { x: start.x, y: start.y }
   let lastDirection: DirectionalMovement | null = null
@@ -323,7 +324,7 @@ const getActionLockState = (commands: string[]) => {
 const simulatePreviewPosition = (start: PlayerState | null, commands: string[], ringDepth: number): Coordinate | null => {
   if (!start) return null
 
-  const min = ringDepth
+  const min = Math.min(ringDepth, SYMMETRIC_RING_DEPTH)
   const max = GRID_SIZE - 1 - ringDepth
   const next = { x: start.x, y: start.y }
 
@@ -562,9 +563,17 @@ export default function TypekwandoPage() {
       }
     }
 
+    const onSessionPhaseChanged = (payload: any) => {
+      if (!mounted) return
+      if (payload?.phase === "lobby" && joinCode) {
+        router.push(`/party/${joinCode}`)
+      }
+    }
+
     wsClient.on("partyState", onPartyState)
     wsClient.on("game-started", onGameStarted)
     wsClient.on("game-update", onGameUpdate)
+    wsClient.on("session-phase-changed", onSessionPhaseChanged)
 
     wsClient
       .socketRequest("game-status", {})
@@ -584,6 +593,7 @@ export default function TypekwandoPage() {
       wsClient.off("partyState", onPartyState)
       wsClient.off("game-started", onGameStarted)
       wsClient.off("game-update", onGameUpdate)
+      wsClient.off("session-phase-changed", onSessionPhaseChanged)
     }
   }, [playerType, playerData, router])
 
@@ -837,7 +847,9 @@ export default function TypekwandoPage() {
     }
 
     if (playerType === "host") {
-      wsClient.send("start-game", { code: joinCode, gameName: "games" })
+      void wsClient.sendWithRetry("start-game", { code: joinCode, gameName: "games" }).catch((err) => {
+        console.error('Failed to return party to games page:', err)
+      })
     }
   }
 
@@ -848,7 +860,9 @@ export default function TypekwandoPage() {
     }
 
     if (playerType === "host") {
-      wsClient.send("start-game", { code: joinCode, gameName: "typekwando" })
+      void wsClient.sendWithRetry("start-game", { code: joinCode, gameName: "typekwando" }).catch((err) => {
+        console.error('Failed to replay Typekwando:', err)
+      })
     }
   }
 
@@ -859,7 +873,9 @@ export default function TypekwandoPage() {
     }
 
     if (playerType === "host" && joinCode) {
-      wsClient.send("start-game", { code: joinCode, gameName: "typekwando" })
+      void wsClient.sendWithRetry("start-game", { code: joinCode, gameName: "typekwando" }).catch((err) => {
+        console.error('Failed to begin Typekwando:', err)
+      })
     }
   }
 
@@ -1008,11 +1024,13 @@ export default function TypekwandoPage() {
                 return 0
               })
               const cellHighlights = actionHighlightsByCell.get(key) || []
+              const minBound = Math.min(ringDepth, SYMMETRIC_RING_DEPTH)
+              const maxBound = GRID_SIZE - 1 - ringDepth
               const cellDisabled =
-                cell.x < ringDepth ||
-                cell.y < ringDepth ||
-                cell.x > GRID_SIZE - 1 - ringDepth ||
-                cell.y > GRID_SIZE - 1 - ringDepth
+                cell.x < minBound ||
+                cell.y < minBound ||
+                cell.x > maxBound ||
+                cell.y > maxBound
 
               return (
                 <div key={key} className={`${styles.cell} ${cellDisabled ? styles.cellInactive : ""}`}>
