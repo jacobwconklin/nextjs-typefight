@@ -43,10 +43,10 @@ interface Player {
 }
 
 const QUICKKEYS_RULES = [
-  'Host picks one text for everyone.',
-  'Type the full text as fast and accurately as possible.',
-  'Mistakes are tracked and shown on the results screen.',
-  'Finish first with the best accuracy to win.'
+  'Host picks from a list of texts.',
+  'Type the full text as fast as possible.',
+  'Finish first to win.',
+  'Speed and Mistakes are tracked and shown on the results screen.'
 ]
 
 export default function QuickKeysPage() {
@@ -103,6 +103,8 @@ export default function QuickKeysPage() {
         }
         
         if (session.gameState) {
+          const showInstructions = Boolean(session?.['show-instructions'])
+          setHasBegun(!showInstructions)
           setGameState({
             finished: session.gameState.finished || false,
             textName: session.gameState.textName || null,
@@ -160,6 +162,12 @@ export default function QuickKeysPage() {
             }
           }
         }))
+      } else if (payload.type === 'game-ended') {
+        console.log('Game ended by host')
+        setGameState(prev => ({
+          ...prev,
+          finished: true
+        }))
       }
     }
 
@@ -175,7 +183,8 @@ export default function QuickKeysPage() {
       }
 
       if (payload.session && payload.session.gameName === 'quickkeys') {
-        setHasBegun(true)
+        const showInstructions = Boolean(payload.session?.['show-instructions'])
+        setHasBegun(!showInstructions)
       }
       
       // Initialize game state from session
@@ -214,6 +223,47 @@ export default function QuickKeysPage() {
       }
     }
 
+    const onSessionSnapshot = (payload: any) => {
+      if (!mounted) return
+      const session = payload?.session
+      if (!session || session.gameName !== 'quickkeys') return
+
+      const showInstructions = Boolean(session?.['show-instructions'])
+      setHasBegun(!showInstructions)
+
+      if (Array.isArray(session.players)) {
+        setPlayers(session.players)
+      }
+
+      if (session.gameState) {
+        setGameState({
+          finished: session.gameState.finished || false,
+          textName: session.gameState.textName || null,
+          playerPositions: session.gameState.playerPositions || {}
+        })
+      }
+    }
+
+    const onRejoinSuccess = (payload: any) => {
+      if (!mounted) return
+      const session = payload?.session
+      if (!session || session.gameName !== 'quickkeys') return
+
+      const showInstructions = Boolean(session?.['show-instructions'])
+      setHasBegun(!showInstructions)
+      if (Array.isArray(session.players)) {
+        setPlayers(session.players)
+      }
+
+      if (session.gameState) {
+        setGameState({
+          finished: session.gameState.finished || false,
+          textName: session.gameState.textName || null,
+          playerPositions: session.gameState.playerPositions || {}
+        })
+      }
+    }
+
     const onSessionPhaseChanged = (payload: any) => {
       if (!mounted) return
       if (payload?.phase === 'lobby' && joinCode) {
@@ -224,6 +274,8 @@ export default function QuickKeysPage() {
     wsClient.on('game-update', onGameUpdate)
     wsClient.on('game-started', onGameStarted)
     wsClient.on('partyState', onPartyState)
+    wsClient.on('session-snapshot', onSessionSnapshot)
+    wsClient.on('rejoin-success', onRejoinSuccess)
     wsClient.on('session-phase-changed', onSessionPhaseChanged)
 
     return () => {
@@ -231,6 +283,8 @@ export default function QuickKeysPage() {
       wsClient.off('game-update', onGameUpdate)
       wsClient.off('game-started', onGameStarted)
       wsClient.off('partyState', onPartyState)
+      wsClient.off('session-snapshot', onSessionSnapshot)
+      wsClient.off('rejoin-success', onRejoinSuccess)
       wsClient.off('session-phase-changed', onSessionPhaseChanged)
     }
   }, [isSolo, joinCode, router])
@@ -364,10 +418,8 @@ export default function QuickKeysPage() {
       return
     }
 
-    if (playerType === 'host' && joinCode) {
-      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'quickkeys' }).catch((err) => {
-        console.error('Failed to begin QuickKeys:', err)
-      })
+    if (playerType === 'host') {
+      wsClient.send('update-game', { type: 'hide-instructions' })
     }
   }
 
@@ -403,6 +455,16 @@ export default function QuickKeysPage() {
       console.log('Host returning party to games page')
       void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'games' }).catch((err) => {
         console.error('Failed to return party to games page:', err)
+      })
+    }
+  }
+
+  // Handle host ending game for all players
+  const handleEndGame = () => {
+    if (playerType === 'host' && joinCode) {
+      console.log('Host ending game for all players')
+      wsClient.send('update-game', {
+        type: 'end-game'
       })
     }
   }
@@ -446,6 +508,8 @@ export default function QuickKeysPage() {
         gameState={gameState}
         players={players}
         currentPlayerId={currentPlayerId}
+        playerType={playerType}
+        onEndGame={handleEndGame}
       />
     )
   }

@@ -32,6 +32,8 @@ interface GameViewProps {
   }
   players: Player[]
   currentPlayerId: string
+  playerType: 'solo' | 'host' | 'join'
+  onEndGame: () => void
 }
 
 export default function GameView({
@@ -40,7 +42,9 @@ export default function GameView({
   hasError,
   gameState,
   players,
-  currentPlayerId
+  currentPlayerId,
+  playerType,
+  onEndGame
 }: GameViewProps) {
   if (!selectedText) return null
 
@@ -131,6 +135,17 @@ export default function GameView({
       </div>
       
       {renderProgressBar()}
+
+      {playerType === 'host' && (
+        <div className={styles.endGameContainer}>
+          <button 
+            className={styles.endGameButton}
+            onClick={onEndGame}
+          >
+            End Game For All
+          </button>
+        </div>
+      )}
     </div>
   )
 }

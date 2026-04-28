@@ -43,10 +43,11 @@ interface LocalGameState {
 }
 
 const TEXTSPLOSION_RULES = [
-  'One player is in the hot seat while everyone else pumps the balloon.',
-  'Hot seat clears challenge text to pass the turn.',
-  'Other players type pump words to grow pressure faster.',
-  'If the balloon pops on your turn, you are eliminated.'
+  'One player is in the hot seat while everyone else pumps a balloon.',
+  'The player in the hot seat must complete a typing challenge to escape.',
+  'Every word typed by the other players inflates the balloon which pops at a random size.',
+  'When the balloon pops, the player in the hot seat is eliminated.',
+  'Last player remaining wins!'
 ]
 
 // Generate a random word for pumping
@@ -155,6 +156,8 @@ export default function TextSplosionPage() {
           
           // Load existing game state from server if available
           if (session.gameState && session.gameState.playerOrder && session.gameState.playerOrder.length > 0) {
+            const showInstructions = Boolean(session?.['show-instructions'])
+            setHasBegun(!showInstructions)
             console.log('Loading game state:', session.gameState)
             setGameState({
               playerOrder: session.gameState.playerOrder || [],
@@ -196,7 +199,8 @@ export default function TextSplosionPage() {
       }
 
       if (payload.session && payload.session.gameName === 'textsplosion') {
-        setHasBegun(true)
+        const showInstructions = Boolean(payload.session?.['show-instructions'])
+        setHasBegun(!showInstructions)
       }
       
       // Handle game restart for textsplosion
@@ -239,6 +243,56 @@ export default function TextSplosionPage() {
       }
     }
 
+    const onSessionSnapshot = (payload: any) => {
+      if (!mounted) return
+      const session = payload?.session
+      if (!session || session.gameName !== 'textsplosion') return
+
+      const showInstructions = Boolean(session?.['show-instructions'])
+      setHasBegun(!showInstructions)
+
+      if (Array.isArray(session.players)) {
+        setPlayers(session.players)
+      }
+
+      if (session.gameState) {
+        setGameState({
+          playerOrder: session.gameState.playerOrder || [],
+          expiredPlayers: session.gameState.expiredPlayers || [],
+          wordsTyped: session.gameState.wordsTyped || {},
+          numWordsUntilPop: session.gameState.numWordsUntilPop || 0,
+          numWordsPumped: session.gameState.numWordsPumped || 0,
+          finished: session.gameState.finished || false,
+          winnerId: session.gameState.winnerId || null
+        })
+      }
+    }
+
+    const onRejoinSuccess = (payload: any) => {
+      if (!mounted) return
+      const session = payload?.session
+      if (!session || session.gameName !== 'textsplosion') return
+
+      const showInstructions = Boolean(session?.['show-instructions'])
+      setHasBegun(!showInstructions)
+
+      if (Array.isArray(session.players)) {
+        setPlayers(session.players)
+      }
+
+      if (session.gameState) {
+        setGameState({
+          playerOrder: session.gameState.playerOrder || [],
+          expiredPlayers: session.gameState.expiredPlayers || [],
+          wordsTyped: session.gameState.wordsTyped || {},
+          numWordsUntilPop: session.gameState.numWordsUntilPop || 0,
+          numWordsPumped: session.gameState.numWordsPumped || 0,
+          finished: session.gameState.finished || false,
+          winnerId: session.gameState.winnerId || null
+        })
+      }
+    }
+
     const onSessionPhaseChanged = (payload: any) => {
       if (!mounted) return
       if (payload?.phase === 'lobby' && joinCode) {
@@ -248,12 +302,16 @@ export default function TextSplosionPage() {
 
     wsClient.on('game-update', handleGameUpdate)
     wsClient.on('game-started', handleGameStarted)
+    wsClient.on('session-snapshot', onSessionSnapshot)
+    wsClient.on('rejoin-success', onRejoinSuccess)
     wsClient.on('session-phase-changed', onSessionPhaseChanged)
 
     return () => {
       mounted = false
       wsClient.off('game-update', handleGameUpdate)
       wsClient.off('game-started', handleGameStarted)
+      wsClient.off('session-snapshot', onSessionSnapshot)
+      wsClient.off('rejoin-success', onRejoinSuccess)
       wsClient.off('session-phase-changed', onSessionPhaseChanged)
     }
   }, [joinCode, playerType, playerData, router])
@@ -478,10 +536,8 @@ export default function TextSplosionPage() {
       return
     }
 
-    if (playerType === 'host' && joinCode) {
-      void wsClient.sendWithRetry('start-game', { code: joinCode, gameName: 'textsplosion' }).catch((err) => {
-        console.error('Failed to begin TextSplosion:', err)
-      })
+    if (playerType === 'host') {
+      wsClient.send('update-game', { type: 'hide-instructions' })
     }
   }
 

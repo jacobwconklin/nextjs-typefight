@@ -42,14 +42,14 @@ export function PlayerTypeProvider({ children }: { children: ReactNode }) {
   // Restore multiplayer identity after accidental refreshes.
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
+      const raw = sessionStorage.getItem(STORAGE_KEY)
       if (!raw) return
       const stored = JSON.parse(raw) as StoredPlayerContext
       if (stored.playerType) setPlayerType(stored.playerType)
       if (typeof stored.joinCode !== 'undefined') setJoinCode(stored.joinCode)
       if (stored.playerData) setPlayerData(stored.playerData)
     } catch (err) {
-      console.error('Failed to restore player context from localStorage', err)
+      console.error('Failed to restore player context from sessionStorage', err)
     } finally {
       setIsHydrated(true)
     }
@@ -63,9 +63,9 @@ export function PlayerTypeProvider({ children }: { children: ReactNode }) {
         joinCode,
         playerData
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
     } catch (err) {
-      console.error('Failed to persist player context to localStorage', err)
+      console.error('Failed to persist player context to sessionStorage', err)
     }
   }, [isHydrated, playerType, joinCode, playerData])
 
@@ -77,9 +77,9 @@ export function PlayerTypeProvider({ children }: { children: ReactNode }) {
       setJoinCode(null)
       setPlayerData(null)
       try {
-        localStorage.removeItem(STORAGE_KEY)
+        sessionStorage.removeItem(STORAGE_KEY)
       } catch (err) {
-        console.error('Failed to clear player context from localStorage', err)
+        console.error('Failed to clear player context from sessionStorage', err)
       }
       window.location.href = '/'
     }

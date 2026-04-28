@@ -51,7 +51,11 @@ export default function PartyPage() {
 
   // join the session and subscribe to socket events
   useEffect(() => {
-    if (!joinCode) return
+    console.log('[useEffect] INITIALIZING - joinCode:', joinCode, 'playerType:', playerType)
+    if (!joinCode) {
+      console.log('[useEffect] No joinCode, skipping')
+      return
+    }
     let mounted = true
     let rejoinAttempt = 0
     let joinFallbackAttempted = false
@@ -60,10 +64,17 @@ export default function PartyPage() {
 
     const player = playerData
     if (!player?.id) {
+      if (playerType === 'solo') {
+        console.log('[useEffect] Player reset to solo, skipping redirect')
+        return
+      }
+      console.log('[useEffect] No player data available, redirecting to /player/join')
       // No multiplayer identity available; never auto-join as a fallback guest.
       router.push('/player/join')
       return
     }
+
+    console.log('[useEffect] Player data available - ID:', player.id, 'Alias:', player.alias)
 
     const retryDelays = [0, 1000, 2000, 4000, 8000]
 
@@ -76,96 +87,174 @@ export default function PartyPage() {
       icon: player.icon || 'wizard'
     }
 
+    console.log('[useEffect] Payload prepared:', payload)
+
     const onJoinSuccess = (payload: any) => {
-      if (!mounted) return
+      console.log('[onJoinSuccess] RECEIVED - Player ID:', player?.id, 'Players in payload:', payload?.players?.length || 0)
+      if (!mounted) {
+        console.log('[onJoinSuccess] Component not mounted, ignoring')
+        return
+      }
       rejoinRecovered = true
       setPlayers(payload.players || [])
       setGameStarted(Boolean(payload.gameState?.started))
       setHostPlayerId(payload?.session?.hostPlayerId || null)
-      console.log('Join success! Player ID:', player?.id)
+      console.log('[onJoinSuccess] SUCCESS! Player ID:', player?.id, 'with', payload?.players?.length || 0, 'players')
     }
 
     const onRejoinSuccess = (payload: any) => {
-      if (!mounted) return
+      console.log('[onRejoinSuccess] RECEIVED - Player ID:', player?.id, 'Payload:', payload)
+      if (!mounted) {
+        console.log('[onRejoinSuccess] Component not mounted, ignoring')
+        return
+      }
       rejoinRecovered = true
+      console.log('[onRejoinSuccess] Setting rejoinRecovered to true')
       setPlayers(payload?.session?.players || [])
       setGameStarted(Boolean(payload?.session?.started))
       setHostPlayerId(payload?.session?.hostPlayerId || null)
-      console.log('Rejoin success! Player ID:', player?.id)
+      console.log('[onRejoinSuccess] SUCCESS! Player ID:', player?.id, 'with', payload?.session?.players?.length || 0, 'players')
     }
 
     const attemptRejoin = () => {
-      if (!mounted || rejoinRecovered || !payload.playerId) return
-      if (rejoinAttempt >= retryDelays.length) return
+      console.log('[attemptRejoin] START - rejoinAttempt:', rejoinAttempt, 'max:', retryDelays.length)
+      if (!mounted) {
+        console.log('[attemptRejoin] Component not mounted, aborting')
+        return
+      }
+      if (rejoinRecovered) {
+        console.log('[attemptRejoin] Already recovered, aborting')
+        return
+      }
+      if (!payload.playerId) {
+        console.log('[attemptRejoin] No playerId in payload, aborting')
+        return
+      }
+      if (rejoinAttempt >= retryDelays.length) {
+        console.log('[attemptRejoin] Max attempts reached, aborting')
+        return
+      }
 
       const delay = retryDelays[rejoinAttempt]
       rejoinAttempt += 1
+      console.log('[attemptRejoin] Scheduling rejoin attempt #' + rejoinAttempt + ' in', delay + 'ms')
       retryTimeout = setTimeout(() => {
-        if (!mounted || rejoinRecovered) return
+        console.log('[attemptRejoin] TIMEOUT FIRED - Sending rejoin-session event')
+        if (!mounted) {
+          console.log('[attemptRejoin] Component unmounted before timeout, skipping')
+          return
+        }
+        if (rejoinRecovered) {
+          console.log('[attemptRejoin] Already recovered before timeout, skipping')
+          return
+        }
+        console.log('[attemptRejoin] Emitting rejoin-session with joinCode:', payload.joinCode, 'playerId:', payload.playerId)
         void wsClient.sendWithRetry('rejoin-session', {
           joinCode: payload.joinCode,
           playerId: payload.playerId
         }, {
           maxRetries: 0,
           timeoutMs: 3500
-        }).catch(() => {
+        }).catch((err) => {
+          console.log('[attemptRejoin] CATCH - Rejoin attempt failed:', err)
           // Errors are handled via rejoin-failed events and outer retry sequence.
         })
       }, delay)
     }
 
     const onRejoinFailed = (rejoinPayload: any) => {
-      if (!mounted || rejoinRecovered) return
+      console.log('[onRejoinFailed] RECEIVED - Reason:', rejoinPayload?.reason, 'Error:', rejoinPayload?.error, 'Full payload:', rejoinPayload)
+      if (!mounted) {
+        console.log('[onRejoinFailed] Component not mounted, ignoring')
+        return
+      }
+      if (rejoinRecovered) {
+        console.log('[onRejoinFailed] Already recovered, ignoring')
+        return
+      }
 
       // If there is no previous server-side player state, fall back to normal join once.
       if (rejoinPayload?.reason === 'player-not-found' && !joinFallbackAttempted) {
+        console.log('[onRejoinFailed] Player not found, attempting join-session fallback')
         joinFallbackAttempted = true
+        console.log('[onRejoinFailed] Emitting join-session with payload:', payload)
         wsClient.send('join-session', payload)
         return
       }
 
+      console.log('[onRejoinFailed] Scheduling next rejoin attempt')
       attemptRejoin()
     }
 
     const onPlayerJoined = (payload: any) => {
-      if (!mounted) return
+      console.log('[onPlayerJoined] RECEIVED - Players count:', payload?.players?.length || 0)
+      if (!mounted) {
+        console.log('[onPlayerJoined] Component not mounted, ignoring')
+        return
+      }
       setPlayers(payload.players || [])
     }
 
     const onPlayerLeft = (payload: any) => {
-      if (!mounted) return
+      console.log('[onPlayerLeft] RECEIVED - Left player:', payload?.playerId, 'Remaining players:', payload?.players?.length || 0)
+      if (!mounted) {
+        console.log('[onPlayerLeft] Component not mounted, ignoring')
+        return
+      }
       setPlayers(payload.players || [])
     }
 
     const onPartyState = (payload: any) => {
-      if (!mounted) return
+      console.log('[onPartyState] RECEIVED - Players:', payload?.players?.length || 0, 'GameStarted:', payload?.gameStarted)
+      if (!mounted) {
+        console.log('[onPartyState] Component not mounted, ignoring')
+        return
+      }
       setPlayers(payload.players || [])
       setGameStarted(Boolean(payload.gameStarted))
     }
 
     const onSessionSnapshot = (snapshotPayload: any) => {
-      if (!mounted) return
+      console.log('[onSessionSnapshot] RECEIVED - Players:', snapshotPayload?.session?.players?.length || 0, 'Started:', snapshotPayload?.session?.started)
+      if (!mounted) {
+        console.log('[onSessionSnapshot] Component not mounted, ignoring')
+        return
+      }
       const session = snapshotPayload?.session
-      if (!session) return
+      if (!session) {
+        console.log('[onSessionSnapshot] No session in payload, ignoring')
+        return
+      }
       setPlayers(session.players || [])
       setGameStarted(Boolean(session.started))
       setHostPlayerId(session.hostPlayerId || null)
     }
 
     const onGameStarted = (payload: any) => {
+      console.log('[onGameStarted] RECEIVED - Navigating to /games')
       if (!mounted) return
       // Navigate to games page when game is started
       router.push('/games')
     }
 
     const onJoinError = (payload: any) => {
+      console.log('[onJoinError] RECEIVED - Error:', payload?.error)
       if (!mounted) return
       alert(payload?.error || 'Failed to join session')
       router.push('/player/join')
     }
 
     const onSocketConnected = () => {
-      if (!mounted || rejoinRecovered) return
+      console.log('[onSocketConnected] Socket connected to server')
+      if (!mounted) {
+        console.log('[onSocketConnected] Component not mounted, skipping rejoin')
+        return
+      }
+      if (rejoinRecovered) {
+        console.log('[onSocketConnected] Already recovered, skipping rejoin')
+        return
+      }
+      console.log('[onSocketConnected] Starting rejoin attempt')
       attemptRejoin()
     }
 
@@ -180,12 +269,17 @@ export default function PartyPage() {
     wsClient.on('join-error', onJoinError)
     wsClient.on('connect', onSocketConnected)
 
+    console.log('[useEffect] Event listeners registered')
+
     // attempt to fetch current session info (optional) - useful for viewing empty parties
     wsClient.request('getParty', { code: joinCode }).then((res) => {
+      console.log('[getParty] SUCCESS - Players:', res?.players?.length || 0)
       if (!mounted) return
       setPlayers(res?.players || [])
       setGameStarted(Boolean(res?.gameState?.started))
-    }).catch(() => {})
+    }).catch((err) => {
+      console.log('[getParty] FAILED:', err)
+    })
 
     // Before emitting join-session, ensure the session exists on the server.
     const ensureSessionExists = async (code: string, retries = 12, delay = 250) => {
@@ -203,25 +297,30 @@ export default function PartyPage() {
     }
 
     ;(async () => {
+      console.log('[asyncInit] STARTING - Checking if session exists')
       const s = await ensureSessionExists(joinCode)
       if (!s) {
+        console.log('[asyncInit] FAIL - Session not available')
         // show helpful message and navigate back to create/join
         alert('Session not available yet. Try refreshing or creating a new session.')
         router.push('/player/host')
         return
       }
 
+      console.log('[asyncInit] Session confirmed, initiating rejoin process')
       // First try to recover a prior player session, then fall back to normal join.
       attemptRejoin()
 
       // Always attempt one explicit join fallback for known player identity.
       if (!joinFallbackAttempted) {
+        console.log('[asyncInit] Emitting join-session as fallback')
         joinFallbackAttempted = true
         wsClient.send('join-session', payload)
       }
     })()
 
     return () => {
+      console.log('[useEffect cleanup] UNMOUNTING')
       mounted = false
       if (retryTimeout) {
         clearTimeout(retryTimeout)
@@ -237,7 +336,7 @@ export default function PartyPage() {
       wsClient.off('join-error', onJoinError)
       wsClient.off('connect', onSocketConnected)
     }
-  }, [joinCode, router, playerData])
+  }, [joinCode, router, playerData, playerType])
 
   const [codeBurst, setCodeBurst] = useState(false)
   const [urlBurst, setUrlBurst] = useState(false)

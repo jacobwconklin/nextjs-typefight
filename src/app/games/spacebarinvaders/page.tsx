@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { usePlayerType } from '../../../context/PlayerTypeContext'
 import wsClient from '../../../websocket/wsClient'
 import GameInstructionsOverlay from '../../../components/GameInstructionsOverlay'
+import ExitButton from '@/components/ExitButton'
 import { isSoloPlayer } from '../../../localGames/soloMode'
 import {
   applySoloEarthHit,
@@ -15,6 +16,7 @@ import {
 import { preloadImages, spaceBarInvadersAssets } from '../../../utils/imagePreloader'
 import GameView from './GameView'
 import GameOverView from './GameOverView'
+import styles from './GameView.module.scss'
 
 // Interface for a danger object
 interface Danger {
@@ -30,11 +32,11 @@ interface GameState {
   earthHits: number
   dangers: Danger[]
   gameOver: boolean
-  waveTransitioning?: boolean
-  gameStartTime?: number
-  survivalTime?: number
-  finalWave?: number
-  playerStats?: Record<string, number>
+  waveTransitioning: boolean
+  gameStartTime: number
+  survivalTime: number
+  finalWave: number
+  playerStats: Record<string, number>
 }
 
 // Interface for player
@@ -47,10 +49,10 @@ interface Player {
 }
 
 const SPACEBAR_INVADERS_RULES = [
-  'Type matching danger words to destroy them before they hit Earth.',
-  'Earth can only take a few hits, then the game ends.',
-  'Each cleared wave brings new incoming dangers.',
-  'Survive as long as possible and clear as many waves as you can.'
+  'Earth is being bombarded by space debris.',
+  'Type the words as they approach to destroy them.',
+  'Each cleared wave brings increased danger, and the planet can only survive 2 hits.',
+  'Defend for as long as possible.'
 ]
 
 export default function SpaceBarInvadersPage() {
@@ -62,6 +64,8 @@ export default function SpaceBarInvadersPage() {
     earthHits: 0,
     dangers: [],
     gameOver: false,
+    waveTransitioning: false,
+    gameStartTime: Date.now(),
     survivalTime: 0,
     finalWave: 1,
     playerStats: {}
@@ -120,6 +124,8 @@ export default function SpaceBarInvadersPage() {
         }
         
         if (session.gameState) {
+          const showInstructions = Boolean(session?.['show-instructions'])
+          setHasBegun(!showInstructions)
           setGameState({
             waveNumber: session.gameState.waveNumber || 1,
             survivalTime: session.gameState.survivalTime || 0,
@@ -127,7 +133,9 @@ export default function SpaceBarInvadersPage() {
             playerStats: session.gameState.playerStats || {},
             earthHits: session.gameState.earthHits || 0,
             dangers: session.gameState.dangers || [],
-            gameOver: session.gameState.gameOver || false
+            gameOver: session.gameState.gameOver || false,
+            waveTransitioning: session.gameState.waveTransitioning || false,
+            gameStartTime: session.gameState.gameStartTime || Date.now()
           })
           console.log('Game state loaded:', session.gameState)
         }
@@ -149,7 +157,8 @@ export default function SpaceBarInvadersPage() {
       }
 
       if (payload.session && payload.session.gameName === 'spacebarinvaders') {
-        setHasBegun(true)
+        const showInstructions = Boolean(payload.session?.['show-instructions'])
+        setHasBegun(!showInstructions)
       }
       
       if (payload.success && payload.session) {
@@ -169,7 +178,9 @@ export default function SpaceBarInvadersPage() {
             playerStats: session.gameState.playerStats || {},
             earthHits: session.gameState.earthHits || 0,
             dangers: session.gameState.dangers || [],
-            gameOver: false // Reset game over state
+            gameOver: false, // Reset game over state
+            waveTransitioning: session.gameState.waveTransitioning || false,
+            gameStartTime: session.gameState.gameStartTime || Date.now()
           })
           console.log('Game state reset for new game:', session.gameState)
         }
@@ -234,6 +245,60 @@ export default function SpaceBarInvadersPage() {
       }
     }
 
+    const onSessionSnapshot = (payload: any) => {
+      if (!mounted) return
+      const session = payload?.session
+      if (!session || session.gameName !== 'spacebarinvaders') return
+
+      const showInstructions = Boolean(session?.['show-instructions'])
+      setHasBegun(!showInstructions)
+
+      if (Array.isArray(session.players)) {
+        setPlayers(session.players)
+      }
+
+      if (session.gameState) {
+        setGameState({
+          waveNumber: session.gameState.waveNumber || 1,
+          survivalTime: session.gameState.survivalTime || 0,
+          finalWave: session.gameState.waveNumber || 1,
+          playerStats: session.gameState.playerStats || {},
+          earthHits: session.gameState.earthHits || 0,
+          dangers: session.gameState.dangers || [],
+          gameOver: session.gameState.gameOver || false,
+          waveTransitioning: session.gameState.waveTransitioning || false,
+          gameStartTime: session.gameState.gameStartTime || Date.now()
+        })
+      }
+    }
+
+    const onRejoinSuccess = (payload: any) => {
+      if (!mounted) return
+      const session = payload?.session
+      if (!session || session.gameName !== 'spacebarinvaders') return
+
+      const showInstructions = Boolean(session?.['show-instructions'])
+      setHasBegun(!showInstructions)
+
+      if (Array.isArray(session.players)) {
+        setPlayers(session.players)
+      }
+
+      if (session.gameState) {
+        setGameState({
+          waveNumber: session.gameState.waveNumber || 1,
+          survivalTime: session.gameState.survivalTime || 0,
+          finalWave: session.gameState.waveNumber || 1,
+          playerStats: session.gameState.playerStats || {},
+          earthHits: session.gameState.earthHits || 0,
+          dangers: session.gameState.dangers || [],
+          gameOver: session.gameState.gameOver || false,
+          waveTransitioning: session.gameState.waveTransitioning || false,
+          gameStartTime: session.gameState.gameStartTime || Date.now()
+        })
+      }
+    }
+
     const onSessionPhaseChanged = (payload: any) => {
       if (!mounted) return
       if (payload?.phase === 'lobby' && joinCode) {
@@ -243,12 +308,16 @@ export default function SpaceBarInvadersPage() {
 
     wsClient.on('game-started', onGameStarted)
     wsClient.on('game-update', onGameUpdate)
+    wsClient.on('session-snapshot', onSessionSnapshot)
+    wsClient.on('rejoin-success', onRejoinSuccess)
     wsClient.on('session-phase-changed', onSessionPhaseChanged)
 
     return () => {
       mounted = false
       wsClient.off('game-started', onGameStarted)
       wsClient.off('game-update', onGameUpdate)
+      wsClient.off('session-snapshot', onSessionSnapshot)
+      wsClient.off('rejoin-success', onRejoinSuccess)
       wsClient.off('session-phase-changed', onSessionPhaseChanged)
     }
   }, [isSolo, joinCode, playerData, playerType, router])
@@ -319,7 +388,9 @@ export default function SpaceBarInvadersPage() {
       return
     }
 
-    startGame()
+    if (playerType === 'host') {
+      wsClient.send('update-game', { type: 'hide-instructions' })
+    }
   }
 
   // Handle replay - restart the game
@@ -357,12 +428,15 @@ export default function SpaceBarInvadersPage() {
 
   if (!hasBegun) {
     return (
-      <GameInstructionsOverlay
-        title="SpaceBarInvaders"
-        rules={SPACEBAR_INVADERS_RULES}
-        canBegin={playerType === 'host' || isSolo}
-        onBegin={handleBegin}
-      />
+      <>
+        <ExitButton gameName="spacebarinvaders" className={styles.exitButton} />
+        <GameInstructionsOverlay
+          title="SpaceBarInvaders"
+          rules={SPACEBAR_INVADERS_RULES}
+          canBegin={playerType === 'host' || isSolo}
+          onBegin={handleBegin}
+        />
+      </>
     )
   }
 
@@ -379,14 +453,17 @@ export default function SpaceBarInvadersPage() {
           onExit={handleExit}
         />
       ) : (
-        <GameView
-          dangers={gameState.dangers}
-          earthHits={gameState.earthHits}
-          waveNumber={gameState.waveNumber}
-          onWordDestroyed={onWordDestroyed}
-          onEarthHit={onEarthHit}
-          isHost={playerType === 'host' || playerType === 'solo'}
-        />
+        <>
+          <ExitButton gameName="spacebarinvaders" className={styles.exitButton} />
+          <GameView
+            dangers={gameState.dangers}
+            earthHits={gameState.earthHits}
+            waveNumber={gameState.waveNumber}
+            onWordDestroyed={onWordDestroyed}
+            onEarthHit={onEarthHit}
+            isHost={playerType === 'host' || playerType === 'solo'}
+          />
+        </>
       )}
     </>
   )

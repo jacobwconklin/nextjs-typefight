@@ -67,10 +67,9 @@ const MAX_WARNING_DURATION_MS = 500
 const ACTION_FLASH_MS = 260
 
 const TYPEFLIGHT_RULES = [
-  'Type direction words to move around the grid.',
-  'Avoid hazards and survive as long as possible.',
-  'If downed, type revive words while a teammate stands on your tile.',
-  'Longest survival with strong team support wins.'
+  'Type the random words appearing on the left of the screen to move in the corresponding direction.',
+  'Avoid hazards to survive as long as possible.',
+  'If downed, other players can stand over the downed player\'s body allowing the downed player to type to revive themselves.',
 ]
 
 type EventImpactOffset = { dx: number; dy: number }
@@ -216,6 +215,7 @@ export default function TypeFlightPage() {
   const [reviveDeathCount, setReviveDeathCount] = useState(0)
   const [gameOverStats, setGameOverStats] = useState<GameOverStats | null>(null)
   const [hasBegun, setHasBegun] = useState(false)
+  const [showInstructions, setShowInstructions] = useState(false)
   const timeoutRefs = useRef<number[]>([])
   const playerStatesRef = useRef(playerStates)
   const currentPlayerIdRef = useRef(currentPlayerId)
@@ -224,6 +224,7 @@ export default function TypeFlightPage() {
   const eventCountsRef = useRef(eventCounts)
   const soloStartedAtRef = useRef<number | null>(null)
   const soloSpawnTimeoutRef = useRef<number | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     playerStatesRef.current = playerStates
@@ -289,9 +290,19 @@ export default function TypeFlightPage() {
           setPlayers(response.session.players)
         }
 
+        setShowInstructions(Boolean(response.session?.['show-instructions']))
+
         const state = response.session.gameState
         if (state?.gameType === 'typeflight' && state.players) {
-          setHasBegun(Boolean(state.hasBegun))
+          const hasActiveGame = Boolean(
+            state.hasBegun ||
+            state.gameOver ||
+            state.elapsedMs ||
+            state.playerDeaths ||
+            state.wordsTyped ||
+            state.players
+          )
+          setHasBegun(hasActiveGame)
           setPlayerStates(state.players)
           setPlayerDeaths(state.playerDeaths || {})
           setWordsTyped(state.wordsTyped || {})
@@ -344,7 +355,17 @@ export default function TypeFlightPage() {
 
       if (session?.gameName !== 'typeflight') return
 
-      setHasBegun(Boolean(session.gameState?.hasBegun))
+      setShowInstructions(Boolean(session?.['show-instructions']))
+
+      const hasActiveGame = Boolean(
+        session.gameState?.hasBegun ||
+        session.gameState?.gameOver ||
+        session.gameState?.elapsedMs ||
+        session.gameState?.playerDeaths ||
+        session.gameState?.wordsTyped ||
+        session.gameState?.players
+      )
+      setHasBegun(hasActiveGame)
 
       if (Array.isArray(session.players)) {
         setPlayers(session.players)
@@ -379,6 +400,7 @@ export default function TypeFlightPage() {
       if (!mounted || payload?.gameType !== 'typeflight') return
 
       if (payload.type === 'typeflight-begin') {
+        setShowInstructions(false)
         setHasBegun(true)
         setPlayerStates(payload.players || {})
         setPlayerDeaths(payload.playerDeaths || {})
@@ -496,6 +518,60 @@ export default function TypeFlightPage() {
       }
     }
 
+    const onSessionSnapshot = (payload: any) => {
+      if (!mounted) return
+      const session = payload?.session
+      if (!session || session.gameName !== 'typeflight') return
+
+      setShowInstructions(Boolean(session?.['show-instructions']))
+
+      if (Array.isArray(session.players)) {
+        setPlayers(session.players)
+      }
+
+      const state = session.gameState
+      if (state?.gameType === 'typeflight' && state.players) {
+        // Only set hasBegun if there's actual game state data
+        const hasActiveGame = Boolean(
+          state.hasBegun ||
+          state.gameOver ||
+          state.elapsedMs ||
+          state.playerDeaths ||
+          state.wordsTyped ||
+          state.players
+        )
+        setHasBegun(hasActiveGame)
+
+        setPlayerStates(state.players)
+        setPlayerDeaths(state.playerDeaths || {})
+        setWordsTyped(state.wordsTyped || {})
+        setGameElapsedMs(state.elapsedMs || 0)
+        setEventCounts({
+          fire: state.eventCounts?.fire || 0,
+          ice: state.eventCounts?.ice || 0,
+          lightning: state.eventCounts?.lightning || 0,
+          bomb: state.eventCounts?.bomb || 0,
+          laser: state.eventCounts?.laser || 0,
+          spikes: state.eventCounts?.spikes || 0
+        })
+        if (state.gameOver) {
+          setGameOverStats({
+            elapsedMs: state.elapsedMs || 0,
+            playerDeaths: state.playerDeaths || {},
+            wordsTyped: state.wordsTyped || {},
+            eventCounts: {
+              fire: state.eventCounts?.fire || 0,
+              ice: state.eventCounts?.ice || 0,
+              lightning: state.eventCounts?.lightning || 0,
+              bomb: state.eventCounts?.bomb || 0,
+              laser: state.eventCounts?.laser || 0,
+              spikes: state.eventCounts?.spikes || 0
+            }
+          })
+        }
+      }
+    }
+
     const onSessionPhaseChanged = (payload: any) => {
       if (!mounted) return
       if (payload?.phase === 'lobby' && joinCode) {
@@ -503,9 +579,65 @@ export default function TypeFlightPage() {
       }
     }
 
+    const onRejoinSuccess = (payload: any) => {
+      if (!mounted) return
+      const session = payload?.session
+      if (!session || session.gameName !== 'typeflight') return
+
+      setShowInstructions(Boolean(session?.['show-instructions']))
+
+      if (Array.isArray(session.players)) {
+        setPlayers(session.players)
+      }
+
+      const state = session.gameState
+      if (state?.gameType === 'typeflight' && state.players) {
+        // Only set hasBegun if there's actual game state data
+        const hasActiveGame = Boolean(
+          state.hasBegun ||
+          state.gameOver ||
+          state.elapsedMs ||
+          state.playerDeaths ||
+          state.wordsTyped ||
+          state.players
+        )
+        setHasBegun(hasActiveGame)
+
+        setPlayerStates(state.players)
+        setPlayerDeaths(state.playerDeaths || {})
+        setWordsTyped(state.wordsTyped || {})
+        setGameElapsedMs(state.elapsedMs || 0)
+        setEventCounts({
+          fire: state.eventCounts?.fire || 0,
+          ice: state.eventCounts?.ice || 0,
+          lightning: state.eventCounts?.lightning || 0,
+          bomb: state.eventCounts?.bomb || 0,
+          laser: state.eventCounts?.laser || 0,
+          spikes: state.eventCounts?.spikes || 0
+        })
+        if (state.gameOver) {
+          setGameOverStats({
+            elapsedMs: state.elapsedMs || 0,
+            playerDeaths: state.playerDeaths || {},
+            wordsTyped: state.wordsTyped || {},
+            eventCounts: {
+              fire: state.eventCounts?.fire || 0,
+              ice: state.eventCounts?.ice || 0,
+              lightning: state.eventCounts?.lightning || 0,
+              bomb: state.eventCounts?.bomb || 0,
+              laser: state.eventCounts?.laser || 0,
+              spikes: state.eventCounts?.spikes || 0
+            }
+          })
+        }
+      }
+    }
+
     wsClient.on('partyState', onPartyState)
     wsClient.on('game-started', onGameStarted)
     wsClient.on('game-update', onGameUpdate)
+    wsClient.on('session-snapshot', onSessionSnapshot)
+    wsClient.on('rejoin-success', onRejoinSuccess)
     wsClient.on('session-phase-changed', onSessionPhaseChanged)
 
     return () => {
@@ -513,6 +645,8 @@ export default function TypeFlightPage() {
       wsClient.off('partyState', onPartyState)
       wsClient.off('game-started', onGameStarted)
       wsClient.off('game-update', onGameUpdate)
+      wsClient.off('session-snapshot', onSessionSnapshot)
+      wsClient.off('rejoin-success', onRejoinSuccess)
       wsClient.off('session-phase-changed', onSessionPhaseChanged)
     }
   }, [isSolo, joinCode, router])
@@ -675,6 +809,14 @@ export default function TypeFlightPage() {
     reviveProgress,
     reviveWords.length
   ])
+
+  useEffect(() => {
+    if (!hasBegun || !currentPlayerState?.alive) return
+    const input = inputRef.current
+    if (!input) return
+    input.focus()
+    input.select()
+  }, [hasBegun, currentPlayerState?.alive])
 
   const warningCellByKey = useMemo(() => {
     const map: Record<string, TypeFlightEventType | 'bomb'> = {}
@@ -871,7 +1013,7 @@ export default function TypeFlightPage() {
     }
   }
 
-  if (!hasBegun) {
+  if (isSolo ? !hasBegun : showInstructions) {
     return (
       <GameInstructionsOverlay
         title="TypeFlight"
@@ -923,6 +1065,7 @@ export default function TypeFlightPage() {
           </div>
 
           <input
+            ref={inputRef}
             className={styles.playerInput}
             placeholder="Player Input"
             value={input}

@@ -44,9 +44,11 @@ const SYMMETRIC_RING_DEPTH = Math.floor((GRID_SIZE - 3) / 2)
 const PRE_SUBMIT_RESET_MS = 800
 
 const TYPEKWANDO_RULES = [
-  "Type movement and action words to queue your turn.",
-  "Commands resolve together in the watch phase.",
-  "Stay inside the active ring and avoid elimination.",
+  "There are two phases of each turn, the typing phase and the watching phase.",
+  "During the typing phase type as many of the movements and actions as you can to eliminate opponents.",
+  "You will see your own inputs played out but will not see how other players chose to move or act.",
+  "Then all player inputs will be performed simultaneously in the watching phase.",
+  "Actions are performed in the direction of the last movement and must be followed by a movement.",
   "Last fighter standing wins the match."
 ]
 
@@ -451,7 +453,8 @@ export default function TypekwandoPage() {
       }
 
       if (payload.session && payload.session.gameName === "typekwando") {
-        setHasBegun(true)
+        const showInstructions = Boolean(payload.session?.['show-instructions'])
+        setHasBegun(!showInstructions)
 
         if (Array.isArray(payload.session.players)) {
           setPlayers(payload.session.players)
@@ -570,9 +573,37 @@ export default function TypekwandoPage() {
       }
     }
 
+    const onSessionSnapshot = (payload: any) => {
+      if (!mounted) return
+      const session = payload?.session
+      if (!session || session.gameName !== 'typekwando') return
+
+      const showInstructions = Boolean(session?.['show-instructions'])
+      setHasBegun(!showInstructions)
+      if (Array.isArray(session.players)) {
+        setPlayers(session.players)
+      }
+      syncFromGameState(session.gameState)
+    }
+
+    const onRejoinSuccess = (payload: any) => {
+      if (!mounted) return
+      const session = payload?.session
+      if (!session || session.gameName !== 'typekwando') return
+
+      const showInstructions = Boolean(session?.['show-instructions'])
+      setHasBegun(!showInstructions)
+      if (Array.isArray(session.players)) {
+        setPlayers(session.players)
+      }
+      syncFromGameState(session.gameState)
+    }
+
     wsClient.on("partyState", onPartyState)
     wsClient.on("game-started", onGameStarted)
     wsClient.on("game-update", onGameUpdate)
+    wsClient.on("session-snapshot", onSessionSnapshot)
+    wsClient.on("rejoin-success", onRejoinSuccess)
     wsClient.on("session-phase-changed", onSessionPhaseChanged)
 
     wsClient
@@ -581,6 +612,10 @@ export default function TypekwandoPage() {
         if (!mounted || !response?.session) return
         if (Array.isArray(response.session.players)) {
           setPlayers(response.session.players)
+        }
+        if (response.session.gameState) {
+          const showInstructions = Boolean(response.session?.['show-instructions'])
+          setHasBegun(!showInstructions)
         }
         syncFromGameState(response.session.gameState)
       })
@@ -593,6 +628,8 @@ export default function TypekwandoPage() {
       wsClient.off("partyState", onPartyState)
       wsClient.off("game-started", onGameStarted)
       wsClient.off("game-update", onGameUpdate)
+      wsClient.off("session-snapshot", onSessionSnapshot)
+      wsClient.off("rejoin-success", onRejoinSuccess)
       wsClient.off("session-phase-changed", onSessionPhaseChanged)
     }
   }, [playerType, playerData, router])
@@ -872,10 +909,8 @@ export default function TypekwandoPage() {
       return
     }
 
-    if (playerType === "host" && joinCode) {
-      void wsClient.sendWithRetry("start-game", { code: joinCode, gameName: "typekwando" }).catch((err) => {
-        console.error('Failed to begin Typekwando:', err)
-      })
+    if (playerType === "host") {
+      wsClient.send('update-game', { type: 'hide-instructions' })
     }
   }
 
