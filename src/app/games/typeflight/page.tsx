@@ -61,8 +61,8 @@ interface GameOverStats {
 const DIRECTIONS: TypeFlightDirection[] = ['up', 'right', 'down', 'left']
 const CASUAL_GAME_LENGTH_MS = 60 * 1000
 const INTENSE_GAME_LENGTH_MS = 45 * 1000
-const START_WARNING_DURATION_MS = 2500
-const CASUAL_END_WARNING_DURATION_MS = 1500
+const START_WARNING_DURATION_MS = 5000
+const CASUAL_END_WARNING_DURATION_MS = 2500
 const MAX_WARNING_DURATION_MS = 500
 const ACTION_FLASH_MS = 260
 
@@ -1171,7 +1171,7 @@ export default function TypeFlightPage() {
                     style={{
                       left: `${(state.x + 0.5) * 10}%`,
                       top: `${(state.y + 0.5) * 10}%`,
-                      zIndex: isCurrent ? 999 : 100 + (players.length - index)
+                      zIndex: isCurrent ? 1600 : 1500 + (players.length - index)
                     }}
                     title={player.alias}
                   >

@@ -26,6 +26,7 @@ interface PlayerPosition {
   index: number
   time: number | null
   errors: number
+  finished?: boolean
 }
 
 interface GameState {
@@ -121,6 +122,12 @@ export default function QuickKeysPage() {
       if (!mounted) return
       console.log('game-update received:', payload)
       
+      // Always allow backend to flip the overall "finished" flag via deltas,
+      // even if the delta doesn't use a specific type.
+      if (payload && payload.finished === true) {
+        setGameState(prev => ({ ...prev, finished: true }))
+      }
+
       // Update game state based on delta
       if (payload.type === 'text-selected') {
         setGameState(prev => ({
@@ -158,7 +165,8 @@ export default function QuickKeysPage() {
             [payload.playerId]: {
               ...prev.playerPositions[payload.playerId],
               time: payload.time,
-              errors: payload.errors
+              errors: payload.errors,
+              finished: true
             }
           }
         }))

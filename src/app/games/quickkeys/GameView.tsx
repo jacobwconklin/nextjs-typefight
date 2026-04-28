@@ -11,6 +11,7 @@ interface PlayerPosition {
   index: number
   time: number | null
   errors: number
+  finished?: boolean
 }
 
 interface Player {

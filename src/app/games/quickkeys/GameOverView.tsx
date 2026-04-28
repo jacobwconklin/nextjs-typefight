@@ -5,6 +5,7 @@ interface PlayerPosition {
   index: number
   time: number | null
   errors: number
+  finished?: boolean
 }
 
 interface Player {
@@ -36,14 +37,20 @@ export default function GameOverView({
   onReplay,
   onExit
 }: GameOverViewProps) {
-  // Sort players by completion time (fastest first)
   const rankedPlayers = players
     .map(player => ({
       ...player,
       position: gameState.playerPositions[player.id]
     }))
-    .filter(p => p.position && p.position.time !== null)
-    .sort((a, b) => (a.position.time || 0) - (b.position.time || 0))
+    .filter(p => Boolean(p.position))
+    .sort((a, b) => {
+      const aFinished = Boolean(a.position?.finished) || a.position?.time !== null
+      const bFinished = Boolean(b.position?.finished) || b.position?.time !== null
+      if (aFinished !== bFinished) return aFinished ? -1 : 1
+      const aTime = a.position?.time ?? Number.POSITIVE_INFINITY
+      const bTime = b.position?.time ?? Number.POSITIVE_INFINITY
+      return aTime - bTime
+    })
 
   const getBorderColor = (rank: number) => {
     if (rank === 1) return '#FFD700' // Gold
@@ -69,6 +76,7 @@ export default function GameOverView({
               <th>Rank</th>
               <th>Player</th>
               <th>Alias</th>
+              <th>Status</th>
               <th>Time (s)</th>
               <th>WPM</th>
               <th>Errors</th>
@@ -76,12 +84,17 @@ export default function GameOverView({
           </thead>
           <tbody>
             {rankedPlayers.map((player, index) => (
+              (() => {
+                const finished = Boolean(player.position?.finished) || player.position?.time !== null
+                const timeMs = player.position?.time
+                const rankText = finished && typeof timeMs === 'number' ? `#${index + 1}` : '—'
+                return (
               <tr
                 key={player.id}
                 style={{ borderColor: getBorderColor(index + 1) }}
                 className={styles.resultRow}
               >
-                <td className={styles.rankCell}>#{index + 1}</td>
+                <td className={styles.rankCell}>{rankText}</td>
                 <td className={styles.iconCell}>
                   <div
                     className={styles.playerIconSmall}
@@ -97,15 +110,20 @@ export default function GameOverView({
                   {player.alias}
                 </td>
                 <td className={styles.timeCell}>
-                  {((player.position.time || 0) / 1000).toFixed(3)}
+                  {finished ? 'Finished' : 'DNF'}
+                </td>
+                <td className={styles.timeCell}>
+                  {typeof timeMs === 'number' ? (timeMs / 1000).toFixed(3) : '—'}
                 </td>
                 <td className={styles.wpmCell}>
-                  {calculateWPM(player.position.time || 0)}
+                  {typeof timeMs === 'number' ? calculateWPM(timeMs) : '—'}
                 </td>
                 <td className={styles.errorsCell}>
-                  {player.position.errors}
+                  {player.position?.errors ?? 0}
                 </td>
               </tr>
+                )
+              })()
             ))}
           </tbody>
         </table>

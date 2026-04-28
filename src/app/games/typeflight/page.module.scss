@@ -300,6 +300,7 @@
   width: 8.4%;
   height: 8.4%;
   pointer-events: none;
+  z-index: 1400;
 }
 
 .eventMarker {
@@ -307,7 +308,7 @@
   transform: translate(-50%, -50%);
   width: 8.4%;
   height: 8.4%;
-  z-index: 1200;
+  z-index: 900;
   pointer-events: none;
 }
 
