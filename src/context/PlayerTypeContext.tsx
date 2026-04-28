@@ -1,7 +1,6 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import wsClient from '../websocket/wsClient'
 
 export type PlayerType = 'host' | 'join' | 'solo'
 
@@ -71,6 +70,14 @@ export function PlayerTypeProvider({ children }: { children: ReactNode }) {
 
   // Handle host moderation kick globally from any UI route.
   useEffect(() => {
+    // Solo players should never connect to the websocket backend.
+    if (playerType === 'solo') {
+      void import('../websocket/wsClient')
+        .then(({ default: wsClient }) => wsClient.close())
+        .catch(() => {})
+      return
+    }
+
     const onPlayerKicked = () => {
       alert('You were kicked by the host.')
       setPlayerType('solo')
@@ -84,11 +91,22 @@ export function PlayerTypeProvider({ children }: { children: ReactNode }) {
       window.location.href = '/'
     }
 
-    wsClient.on('player-kicked', onPlayerKicked)
+    let mounted = true
+    let cleanup: null | (() => void) = null
+
+    void import('../websocket/wsClient')
+      .then(({ default: wsClient }) => {
+        if (!mounted) return
+        wsClient.on('player-kicked', onPlayerKicked)
+        cleanup = () => wsClient.off('player-kicked', onPlayerKicked)
+      })
+      .catch(() => {})
+
     return () => {
-      wsClient.off('player-kicked', onPlayerKicked)
+      mounted = false
+      cleanup?.()
     }
-  }, [])
+  }, [playerType, setJoinCode, setPlayerData, setPlayerType])
 
   return (
     <PlayerTypeContext.Provider value={{ isHydrated, playerType, setPlayerType, joinCode, setJoinCode, playerData, setPlayerData }}>

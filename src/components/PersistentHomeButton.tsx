@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { usePlayerType } from '../context/PlayerTypeContext'
-import wsClient from '../websocket/wsClient'
 import styles from './PersistentHomeButton.module.scss'
 
 type Role = 'host' | 'join' | 'solo'
@@ -39,6 +38,14 @@ export default function PersistentHomeButton() {
   }, [pathname, playerType])
 
   useEffect(() => {
+    // Solo players should not connect to websocket backend at all.
+    if (effectiveRole === 'solo') {
+      void import('../websocket/wsClient')
+        .then(({ default: wsClient }) => wsClient.close())
+        .catch(() => {})
+      return
+    }
+
     const onSessionEnded = () => {
       setOpen(false)
       setJoinCode(null)
@@ -47,11 +54,22 @@ export default function PersistentHomeButton() {
       router.push('/')
     }
 
-    wsClient.on('session-ended', onSessionEnded)
+    let mounted = true
+    let cleanup: null | (() => void) = null
+
+    void import('../websocket/wsClient')
+      .then(({ default: wsClient }) => {
+        if (!mounted) return
+        wsClient.on('session-ended', onSessionEnded)
+        cleanup = () => wsClient.off('session-ended', onSessionEnded)
+      })
+      .catch(() => {})
+
     return () => {
-      wsClient.off('session-ended', onSessionEnded)
+      mounted = false
+      cleanup?.()
     }
-  }, [router, setJoinCode, setPlayerData, setPlayerType])
+  }, [effectiveRole, router, setJoinCode, setPlayerData, setPlayerType])
 
   const handleConfirm = () => {
     if (effectiveRole === 'solo') {
@@ -63,10 +81,14 @@ export default function PersistentHomeButton() {
       return
     }
 
-    wsClient.send('leave-session', {
-      code: joinCode,
-      role: effectiveRole
-    })
+    void import('../websocket/wsClient')
+      .then(({ default: wsClient }) => {
+        wsClient.send('leave-session', {
+          code: joinCode,
+          role: effectiveRole
+        })
+      })
+      .catch(() => {})
 
     setOpen(false)
     setJoinCode(null)
