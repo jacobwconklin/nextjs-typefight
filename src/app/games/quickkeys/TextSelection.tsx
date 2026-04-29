@@ -14,6 +14,8 @@ interface TextSelectionProps {
   playerType: 'solo' | 'host' | 'join'
   selectedTextId: string | null
   onSelectText: (textId: string) => void
+  errorPenaltySeconds: number
+  onChangeErrorPenaltySeconds: (seconds: number) => void
 }
 
 export default function TextSelection({
@@ -21,11 +23,16 @@ export default function TextSelection({
   loading,
   playerType,
   selectedTextId,
-  onSelectText
+  onSelectText,
+  errorPenaltySeconds,
+  onChangeErrorPenaltySeconds
 }: TextSelectionProps) {
   const getWordCount = (text: string) => {
     return text.trim().split(/\s+/).length
   }
+
+  const penaltyOptions = [0, 0.1, 0.5, 1]
+  const canChangePenalty = playerType === 'host' || playerType === 'solo'
 
   if (loading) {
     return (
@@ -39,6 +46,27 @@ export default function TextSelection({
     <div className={styles.container}>
       <h1 className={styles.title}>QuickKeys</h1>
       <p className={styles.subtitle}>Select a text to type</p>
+
+      <div className={styles.settingRow}>
+        <div className={styles.settingLabel}>error penalty (seconds)</div>
+        <div className={styles.tabs} role="radiogroup" aria-label="error penalty (seconds)">
+          {penaltyOptions.map((value) => {
+            const selected = errorPenaltySeconds === value
+            return (
+              <button
+                key={value}
+                type="button"
+                className={`${styles.tabButton} ${selected ? styles.tabSelected : ''}`}
+                onClick={() => canChangePenalty && onChangeErrorPenaltySeconds(value)}
+                disabled={!canChangePenalty}
+                aria-pressed={selected}
+              >
+                {value}
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
       {playerType === 'join' && (
         <div className={styles.waitingMessage}>

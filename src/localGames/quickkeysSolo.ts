@@ -7,12 +7,14 @@ export interface QuickKeysPlayerPosition {
 export interface QuickKeysState {
 	finished: boolean
 	textName: string | null
+	errorPenaltySeconds: number
 	playerPositions: Record<string, QuickKeysPlayerPosition>
 }
 
 export const createSoloQuickKeysState = (): QuickKeysState => ({
 	finished: false,
 	textName: null,
+	errorPenaltySeconds: 0,
 	playerPositions: {}
 })
 

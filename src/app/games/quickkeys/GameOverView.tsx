@@ -24,7 +24,10 @@ interface GameOverViewProps {
     playerPositions: Record<string, PlayerPosition>
   }
   totalWordCount: number
+  errorPenaltySeconds: number
   playerType: 'solo' | 'host' | 'join'
+  gameStartTime: number | null
+  gameEndTime: number | null
   onReplay: () => void
   onExit: () => void
 }
@@ -33,10 +36,18 @@ export default function GameOverView({
   players,
   gameState,
   totalWordCount,
+  errorPenaltySeconds,
   playerType,
+  gameStartTime,
+  gameEndTime,
   onReplay,
   onExit
 }: GameOverViewProps) {
+  const getPenaltyTimeMs = (timeMs: number | null | undefined, errors: number) => {
+    if (typeof timeMs !== 'number') return Number.POSITIVE_INFINITY
+    return timeMs + errors * errorPenaltySeconds * 1000
+  }
+
   const rankedPlayers = players
     .map(player => ({
       ...player,
@@ -47,9 +58,11 @@ export default function GameOverView({
       const aFinished = Boolean(a.position?.finished) || a.position?.time !== null
       const bFinished = Boolean(b.position?.finished) || b.position?.time !== null
       if (aFinished !== bFinished) return aFinished ? -1 : 1
-      const aTime = a.position?.time ?? Number.POSITIVE_INFINITY
-      const bTime = b.position?.time ?? Number.POSITIVE_INFINITY
-      return aTime - bTime
+      const aErrors = a.position?.errors ?? 0
+      const bErrors = b.position?.errors ?? 0
+      const aPenaltyMs = getPenaltyTimeMs(a.position?.time, aErrors)
+      const bPenaltyMs = getPenaltyTimeMs(b.position?.time, bErrors)
+      return aPenaltyMs - bPenaltyMs
     })
 
   const getBorderColor = (rank: number) => {
@@ -62,6 +75,18 @@ export default function GameOverView({
   const calculateWPM = (timeMs: number) => {
     const minutes = timeMs / 60000
     return (totalWordCount / minutes).toFixed(2)
+  }
+
+  const calculateDNFWPM = (wordIndex: number) => {
+    if (!gameStartTime || !gameEndTime || wordIndex === 0) return '—'
+    const minutes = (gameEndTime - gameStartTime) / 60000
+    return (wordIndex / minutes).toFixed(2)
+  }
+
+  const formatPenaltyTimeSeconds = (timeMs: number | null | undefined, errors: number) => {
+    if (typeof timeMs !== 'number') return '—'
+    const totalSeconds = timeMs / 1000 + errors * errorPenaltySeconds
+    return totalSeconds.toFixed(3)
   }
 
   return (
@@ -78,6 +103,7 @@ export default function GameOverView({
               <th>Alias</th>
               <th>Status</th>
               <th>Time (s)</th>
+              <th>Penalty Time (s)</th>
               <th>WPM</th>
               <th>Errors</th>
             </tr>
@@ -88,6 +114,7 @@ export default function GameOverView({
                 const finished = Boolean(player.position?.finished) || player.position?.time !== null
                 const timeMs = player.position?.time
                 const rankText = finished && typeof timeMs === 'number' ? `#${index + 1}` : '—'
+                const errors = player.position?.errors ?? 0
                 return (
               <tr
                 key={player.id}
@@ -115,11 +142,16 @@ export default function GameOverView({
                 <td className={styles.timeCell}>
                   {typeof timeMs === 'number' ? (timeMs / 1000).toFixed(3) : '—'}
                 </td>
+                <td className={styles.timeCell}>
+                  {finished ? formatPenaltyTimeSeconds(timeMs, errors) : '—'}
+                </td>
                 <td className={styles.wpmCell}>
-                  {typeof timeMs === 'number' ? calculateWPM(timeMs) : '—'}
+                  {typeof timeMs === 'number'
+                    ? calculateWPM(timeMs)
+                    : calculateDNFWPM(player.position?.index ?? 0)}
                 </td>
                 <td className={styles.errorsCell}>
-                  {player.position?.errors ?? 0}
+                  {errors}
                 </td>
               </tr>
                 )

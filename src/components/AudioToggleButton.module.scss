@@ -1,0 +1,66 @@
+/* AudioToggleButton — sits just to the left of the home button */
+
+.audioButton {
+  position: fixed;
+  top: 12px;
+  /* 12px margin + 44px home button + 8px gap = 64px from right */
+  right: 64px;
+  z-index: 1200;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 2px solid #393939;
+  background: #5f5f60;
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 140ms ease;
+  /* Container for the icon + slash overlay */
+  position: fixed; /* repeated to ensure it wins over any cascade */
+}
+
+.audioButton:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.42),
+    0 0 18px rgba(139, 233, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.audioButton:active {
+  transform: translateY(0);
+}
+
+/* Music note icon — same mask technique as .homeIcon */
+.musicIcon {
+  width: 22px;
+  height: 22px;
+  background: linear-gradient(90deg, #8be9ff 0%, #c4b5fd 45%, #f9a8d4 100%);
+  -webkit-mask-image: url('/icons/music-note.svg');
+  mask-image: url('/icons/music-note.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  filter: drop-shadow(0 0 8px rgba(167, 139, 250, 0.45));
+  flex-shrink: 0;
+}
+
+/* Diagonal slash — visible only when muted */
+.muteSlash {
+  position: absolute;
+  /* Span from top-left to bottom-right of the button interior */
+  width: 2px;
+  height: 28px;
+  background: linear-gradient(180deg, #f9a8d4 0%, #8be9ff 100%);
+  border-radius: 2px;
+  transform: rotate(-45deg);
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+}

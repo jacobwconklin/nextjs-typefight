@@ -32,6 +32,7 @@ interface PlayerPosition {
 interface GameState {
   finished: boolean
   textName: string | null
+  errorPenaltySeconds: number
   playerPositions: Record<string, PlayerPosition>
 }
 
@@ -58,6 +59,7 @@ export default function QuickKeysPage() {
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [gameState, setGameState] = useState<GameState>(createSoloQuickKeysState())
+  const [errorPenaltySeconds, setErrorPenaltySeconds] = useState<number>(0)
   const [players, setPlayers] = useState<Player[]>([])
   const [currentPlayerId, setCurrentPlayerId] = useState<string>('')
   const [hasBegun, setHasBegun] = useState(false)
@@ -67,6 +69,7 @@ export default function QuickKeysPage() {
   const [currentWordIndex, setCurrentWordIndex] = useState(0)
   const [errors, setErrors] = useState(0)
   const [startTime, setStartTime] = useState<number | null>(null)
+  const [gameEndedAt, setGameEndedAt] = useState<number | null>(null)
   const [hasError, setHasError] = useState(false)
 
   // Load typing texts
@@ -109,8 +112,10 @@ export default function QuickKeysPage() {
           setGameState({
             finished: session.gameState.finished || false,
             textName: session.gameState.textName || null,
+            errorPenaltySeconds: session.gameState.errorPenaltySeconds ?? 0,
             playerPositions: session.gameState.playerPositions || {}
           })
+          setErrorPenaltySeconds(session.gameState.errorPenaltySeconds ?? 0)
           console.log('Game state loaded from game-status:', session.gameState)
         }
       }).catch((err) => {
@@ -176,6 +181,12 @@ export default function QuickKeysPage() {
           ...prev,
           finished: true
         }))
+      } else if (payload.type === 'error-penalty-changed') {
+        const next = typeof payload.errorPenaltySeconds === 'number' ? payload.errorPenaltySeconds : Number(payload.errorPenaltySeconds)
+        if (Number.isFinite(next)) {
+          setErrorPenaltySeconds(next)
+          setGameState(prev => ({ ...prev, errorPenaltySeconds: next }))
+        }
       }
     }
 
@@ -200,8 +211,10 @@ export default function QuickKeysPage() {
         setGameState({
           finished: payload.session.gameState.finished || false,
           textName: payload.session.gameState.textName || null,
+          errorPenaltySeconds: payload.session.gameState.errorPenaltySeconds ?? 0,
           playerPositions: payload.session.gameState.playerPositions || {}
         })
+        setErrorPenaltySeconds(payload.session.gameState.errorPenaltySeconds ?? 0)
         console.log('Game state initialized:', payload.session.gameState)
         
         // Reset typing state when game restarts
@@ -247,8 +260,10 @@ export default function QuickKeysPage() {
         setGameState({
           finished: session.gameState.finished || false,
           textName: session.gameState.textName || null,
+          errorPenaltySeconds: session.gameState.errorPenaltySeconds ?? 0,
           playerPositions: session.gameState.playerPositions || {}
         })
+        setErrorPenaltySeconds(session.gameState.errorPenaltySeconds ?? 0)
       }
     }
 
@@ -267,8 +282,10 @@ export default function QuickKeysPage() {
         setGameState({
           finished: session.gameState.finished || false,
           textName: session.gameState.textName || null,
+          errorPenaltySeconds: session.gameState.errorPenaltySeconds ?? 0,
           playerPositions: session.gameState.playerPositions || {}
         })
+        setErrorPenaltySeconds(session.gameState.errorPenaltySeconds ?? 0)
       }
     }
 
@@ -316,6 +333,13 @@ export default function QuickKeysPage() {
       }
     }
   }, [isSolo, playerData])
+
+  // Capture the moment the game ends for DNF WPM calculation
+  useEffect(() => {
+    if (gameState.finished && gameEndedAt === null) {
+      setGameEndedAt(Date.now())
+    }
+  }, [gameState.finished, gameEndedAt])
 
   // Determine which view to show
   const showTextSelect = !gameState.textName
@@ -420,6 +444,20 @@ export default function QuickKeysPage() {
     }
   }
 
+  const handleChangeErrorPenaltySeconds = (seconds: number) => {
+    setErrorPenaltySeconds(seconds)
+    setGameState(prev => ({ ...prev, errorPenaltySeconds: seconds }))
+
+    if (isSolo) return
+
+    if (playerType === 'host') {
+      wsClient.send('update-game', {
+        type: 'error-penalty-changed',
+        errorPenaltySeconds: seconds
+      })
+    }
+  }
+
   const handleBegin = () => {
     if (isSolo) {
       setHasBegun(true)
@@ -441,6 +479,7 @@ export default function QuickKeysPage() {
       setCurrentWordIndex(0)
       setErrors(0)
       setStartTime(null)
+      setGameEndedAt(null)
       setSelectedTextId(null)
       console.log('Solo game reset to text selection')
     } else if (playerType === 'host') {
@@ -502,6 +541,8 @@ export default function QuickKeysPage() {
         playerType={playerType}
         selectedTextId={selectedTextId}
         onSelectText={handleSelectText}
+        errorPenaltySeconds={errorPenaltySeconds}
+        onChangeErrorPenaltySeconds={handleChangeErrorPenaltySeconds}
       />
     )
   }
@@ -529,7 +570,10 @@ export default function QuickKeysPage() {
         players={players}
         gameState={gameState}
         totalWordCount={totalWordCount}
+        errorPenaltySeconds={errorPenaltySeconds}
         playerType={playerType}
+        gameStartTime={startTime}
+        gameEndTime={gameEndedAt}
         onReplay={handleReplay}
         onExit={handleExit}
       />

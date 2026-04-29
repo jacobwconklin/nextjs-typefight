@@ -3,6 +3,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import styles from './GameView.module.scss'
 import PreloadedImage from '@/components/PreloadedImage'
+import { useSound } from '@/context/SoundContext'
+
+const SFX_ROCKET = '/sounds/effects/rocket-explosion.mp3'
 
 // Interface for a danger object
 interface Danger {
@@ -39,6 +42,8 @@ export default function GameView({
   onEarthHit,
   isHost
 }: GameViewProps) {
+  const { playEffect } = useSound()
+
   const [dangerStates, setDangerStates] = useState<Map<string, DangerState>>(new Map())
   const [inputValue, setInputValue] = useState('')
   const [screenSize, setScreenSize] = useState({ width: 0, height: 0 })
@@ -48,6 +53,11 @@ export default function GameView({
   const animationFrameRef = useRef<number>()
   const waveStartTimeRef = useRef<number>(Date.now())
   const previousEarthHitsRef = useRef<number>(earthHits)
+
+  // Snapshot of dangerStates updated synchronously during render so the
+  // dangers-change effect can read the colliding flag before state is mutated.
+  const dangerStatesSnapRef = useRef<Map<string, DangerState>>(new Map())
+  dangerStatesSnapRef.current = dangerStates
 
   // Get screen size
   useEffect(() => {
@@ -64,17 +74,30 @@ export default function GameView({
     inputRef.current?.focus()
   }, [])
 
-  // Show earth collision effect when earth is hit
+  // Show earth collision effect and play sound when earth is hit.
+  // GameView is only visible while !gameOver, so this only fires for hits 1 & 2.
+  // The fatal 3rd hit unmounts GameView before this effect can run for it.
   useEffect(() => {
     if (earthHits > previousEarthHitsRef.current) {
       setShowEarthCollision(true)
       setTimeout(() => setShowEarthCollision(false), 1000)
+      playEffect(SFX_ROCKET)
     }
     previousEarthHitsRef.current = earthHits
-  }, [earthHits])
+  }, [earthHits, playEffect])
 
   // Initialize danger states when dangers change
   useEffect(() => {
+    // Before mutating dangerStates, check the snapshot for dangers that just
+    // disappeared from the prop list. If they weren't colliding (i.e. they
+    // were typed away by a player), play the rocket-explosion sound.
+    const incomingIds = new Set(dangers.map(d => d.id))
+    dangerStatesSnapRef.current.forEach((snap, id) => {
+      if (!incomingIds.has(id) && !snap.destroyed && !snap.colliding) {
+        playEffect(SFX_ROCKET)
+      }
+    })
+
     setDangerStates(prev => {
       const newStates = new Map(prev)
       
@@ -136,7 +159,7 @@ export default function GameView({
       
       return newStates
     })
-  }, [dangers])
+  }, [dangers, playEffect])
 
   // Reset wave start time when wave changes
   useEffect(() => {

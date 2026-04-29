@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlayerType } from '../../../context/PlayerTypeContext'
+import { useSound } from '../../../context/SoundContext'
 import wsClient from '../../../websocket/wsClient'
 import GameInstructionsOverlay from '../../../components/GameInstructionsOverlay'
 import GameView from './GameView'
@@ -104,6 +105,7 @@ const generateColorWords = (): ColorPair[] => {
 export default function TextSplosionPage() {
   const router = useRouter()
   const { playerType, joinCode, playerData } = usePlayerType()
+  const { playEffect } = useSound()
   const [players, setPlayers] = useState<Player[]>([])
   const [currentPlayerId, setCurrentPlayerId] = useState<string>('')
   const [hasBegun, setHasBegun] = useState(false)
@@ -374,6 +376,8 @@ export default function TextSplosionPage() {
       setCurrentCharIndex(0)
       setCurrentLineIndex(0)
     } else if (data.type === 'player-expired') {
+      // Balloon popped — play the sound for every client
+      playEffect('/sounds/effects/balloon-pop.mp3')
       // Update game state with expired player info
       setGameState(prev => {
         // Check for winner - game ends when only 1 player remains

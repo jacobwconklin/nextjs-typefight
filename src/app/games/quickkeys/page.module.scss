@@ -41,6 +41,58 @@
   text-align: center;
 }
 
+.settingRow {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: -0.5rem 0 1.75rem 0;
+}
+
+.settingLabel {
+  font-size: 0.95rem;
+  color: #8b92a7;
+  letter-spacing: 0.02rem;
+  text-transform: lowercase;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.tabButton {
+  height: 44px;
+  border-radius: 10px;
+  border: 2px solid #1e2436;
+  background: #151a26;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(102, 126, 234, 0.9);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+.tabSelected {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(102, 126, 234, 0.35),
+    0 12px 30px rgba(102, 126, 234, 0.25);
+}
+
 .textList {
   width: 100%;
   max-width: 800px;

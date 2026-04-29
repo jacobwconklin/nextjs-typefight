@@ -1,8 +1,9 @@
 "use client"
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './GameOverView.module.scss'
+import { useSound } from '@/context/SoundContext'
 
 interface Player {
   id: string
@@ -32,6 +33,12 @@ export default function GameOverView({
   onExit
 }: GameOverViewProps) {
   const router = useRouter()
+  const { playEffect } = useSound()
+
+  // Play the earth-explosion sound once when the game-over screen mounts.
+  useEffect(() => {
+    playEffect('/sounds/effects/earth-explosion.mp3')
+  }, [playEffect])
 
   // Format time as MM:SS
   const formatTime = (milliseconds: number) => {

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { usePlayerType } from "../../../context/PlayerTypeContext"
+import { useSound } from "../../../context/SoundContext"
 import wsClient from "../../../websocket/wsClient"
 import GameInstructionsOverlay from "../../../components/GameInstructionsOverlay"
 import GameOverView from "./GameOverView"
@@ -347,6 +348,7 @@ const simulatePreviewPosition = (start: PlayerState | null, commands: string[], 
 export default function TypekwandoPage() {
   const router = useRouter()
   const { playerType, joinCode, playerData } = usePlayerType()
+  const { playEffect } = useSound()
 
   const [players, setPlayers] = useState<Player[]>([])
   const [playerStates, setPlayerStates] = useState<Record<string, PlayerState>>({})
@@ -497,6 +499,15 @@ export default function TypekwandoPage() {
       if (payload.type === "typekwando-watch-tick") {
         if (payload.players) {
           setPlayerStates(payload.players)
+        }
+        // Play sounds for every distinct action type in this tick (watching phase)
+        if (Array.isArray(payload.actionHighlights) && payload.actionHighlights.length > 0) {
+          const tickActions = new Set<string>(
+            payload.actionHighlights.map((h: any) => h.action).filter(Boolean)
+          )
+          if (tickActions.has("punch")) playEffect("/sounds/effects/kung-fu-punch.mp3")
+          if (tickActions.has("kick"))  playEffect("/sounds/effects/kung-fu-kick.mp3")
+          if (tickActions.has("block")) playEffect("/sounds/effects/kung-fu-block.mp3")
         }
         if (Array.isArray(payload.actionHighlights)) {
           const highlights = payload.actionHighlights
@@ -837,6 +848,10 @@ export default function TypekwandoPage() {
       const [action] = actionEntry
       setQueuedCommands((previous) => [...previous, action])
       replaceActionWord(action)
+      // Play the kung-fu sound for the typing player's own action
+      if (action === "punch") playEffect("/sounds/effects/kung-fu-punch.mp3")
+      else if (action === "kick") playEffect("/sounds/effects/kung-fu-kick.mp3")
+      else if (action === "block") playEffect("/sounds/effects/kung-fu-block.mp3")
       setInputFeedback("")
       setCommandInput("")
       return true

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlayerType } from '../../../context/PlayerTypeContext'
+import { useSound } from '../../../context/SoundContext'
 import wsClient from '../../../websocket/wsClient'
 import GameInstructionsOverlay from '../../../components/GameInstructionsOverlay'
 import styles from './page.module.scss'
@@ -196,6 +197,7 @@ const createReviveWords = (count: number): string[] => {
 export default function TypeFlightPage() {
   const router = useRouter()
   const { playerType, playerData, joinCode } = usePlayerType()
+  const { playEffect } = useSound()
   const isSolo = isSoloPlayer(playerType)
   const [players, setPlayers] = useState<Player[]>([])
   const [playerStates, setPlayerStates] = useState<Record<string, TypeFlightPlayerState>>({})
@@ -217,6 +219,8 @@ export default function TypeFlightPage() {
   const [hasBegun, setHasBegun] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
   const timeoutRefs = useRef<number[]>([])
+  // Stable ref so timeout closures can call playEffect without stale captures
+  const playEffectRef = useRef(playEffect)
   const playerStatesRef = useRef(playerStates)
   const currentPlayerIdRef = useRef(currentPlayerId)
   const gameElapsedMsRef = useRef(gameElapsedMs)
@@ -229,6 +233,10 @@ export default function TypeFlightPage() {
   useEffect(() => {
     playerStatesRef.current = playerStates
   }, [playerStates])
+
+  useEffect(() => {
+    playEffectRef.current = playEffect
+  }, [playEffect])
 
   useEffect(() => {
     currentPlayerIdRef.current = currentPlayerId
@@ -442,6 +450,8 @@ export default function TypeFlightPage() {
         )
 
         const actionTimeout = window.setTimeout(() => {
+          // Play the event's sound effect when it fires
+          playEffectRef.current(`/sounds/effects/${event.type}.mp3`)
           // Remove warning/icon
           setWarningEvents((prev) => prev.filter((evt) => evt.id !== event.id))
 
@@ -699,6 +709,8 @@ export default function TypeFlightPage() {
           const warningDurationMs = getWarningDurationMs(nextElapsed)
 
           const actionTimeout = window.setTimeout(() => {
+            // Play the event's sound effect when it fires
+            playEffectRef.current(`/sounds/effects/${event.type}.mp3`)
             setWarningEvents((prev) => prev.filter((evt) => evt.id !== event.id))
             setFlashEvents((prev) => [...prev, { id: event.id, type: event.type, positions: impactedPositions }])
 
